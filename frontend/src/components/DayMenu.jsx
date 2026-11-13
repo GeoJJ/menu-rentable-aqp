@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { shiftDate, soupRecipes, traditionUrl, weekdayOf, weekdays } from './weekly';
+import { shiftDate, soupRecipes, traditionUrl, weekdayOf, weekdays } from '../data/demo/weekly.js';
 
 export const categoryLabels = { soup: 'Caldo', main: 'Segundo', drink: 'Refresco' };
 export const dishCategory = recipe => recipe.category ?? 'main';

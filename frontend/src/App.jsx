@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ingredients, recipes, products, scenarioOptions, estimate, calculate } from './model';
-import { soupRecipes, extraIngredients, extraProducts, weekdays, weekdayOf, shiftDate, demoHistory, traditionUrl } from './weekly';
-import { History } from './History';
-import { mainRecipes, mainIngredients, mainProducts } from './main-dishes';
-import { drinkRecipes, drinkIngredients, drinkProducts } from './drinks';
-import { DayMenu, MenuActions, dishCategory, categoryLabels } from './DayMenu';
-import { preparations } from './preparations';
-import { formatRecipeAmount, picanteriaReference, recipeReferences, recipeSteps } from './recipe-details';
-import './style.css';
+import { ingredients, recipes, products, scenarioOptions, estimate, calculate } from './data/demo/model.js';
+import { soupRecipes, extraIngredients, extraProducts, weekdays, weekdayOf, shiftDate, demoHistory, traditionUrl } from './data/demo/weekly.js';
+import { History } from './components/History.jsx';
+import { mainRecipes, mainIngredients, mainProducts } from './data/demo/main-dishes.js';
+import { drinkRecipes, drinkIngredients, drinkProducts } from './data/demo/drinks.js';
+import { DayMenu, MenuActions, dishCategory, categoryLabels } from './components/DayMenu.jsx';
+import { preparations } from './data/demo/preparations.js';
+import { formatRecipeAmount, picanteriaReference, recipeReferences, recipeSteps } from './data/demo/recipe-details.js';
+import './styles/style.css';
 
 const money = value => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value);
 const number = value => new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(value);
