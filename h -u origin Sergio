@@ -1,0 +1,33 @@
+ .gitignore                                             | 10 [32m++++++++++[m
+ backend/app/__init__.py                                |  1 [32m+[m
+ backend/app/api/__init__.py                            |  1 [32m+[m
+ backend/app/api/router.py                              |  6 [32m++++++[m
+ backend/app/api/routes/__init__.py                     |  1 [32m+[m
+ backend/app/api/routes/health.py                       |  8 [32m++++++++[m
+ backend/app/core/__init__.py                           |  1 [32m+[m
+ backend/app/db/__init__.py                             |  1 [32m+[m
+ backend/app/integrations/__init__.py                   |  1 [32m+[m
+ backend/app/integrations/sources/__init__.py           |  1 [32m+[m
+ backend/app/main.py                                    | 11 [32m+++++++++++[m
+ backend/app/models/__init__.py                         |  1 [32m+[m
+ backend/app/schemas/__init__.py                        |  1 [32m+[m
+ backend/app/services/__init__.py                       |  1 [32m+[m
+ backend/requirements.txt                               |  2 [32m++[m
+ backend/tests/.gitkeep                                 |  1 [32m+[m
+ data/seed/.gitkeep                                     |  1 [32m+[m
+ docs/architecture/.gitkeep                             |  0
+ frontend/.env.example                                  |  1 [32m+[m
+ index.html => frontend/index.html                      |  2 [32m+[m[31m-[m
+ package-lock.json => frontend/package-lock.json        |  0
+ package.json => frontend/package.json                  |  0
+ src.jsx => frontend/src/App.jsx                        | 18 [32m+++++++++[m[31m---------[m
+ DayMenu.jsx => frontend/src/components/DayMenu.jsx     |  2 [32m+[m[31m-[m
+ History.jsx => frontend/src/components/History.jsx     |  0
+ drinks.js => frontend/src/data/demo/drinks.js          |  0
+ .../src/data/demo/main-dishes.js                       |  0
+ model.js => frontend/src/data/demo/model.js            |  0
+ .../src/data/demo/preparations.js                      |  0
+ .../src/data/demo/recipe-details.js                    |  0
+ weekly.js => frontend/src/data/demo/weekly.js          |  0
+ style.css => frontend/src/styles/style.css             |  0
+ 32 files changed, 61 insertions(+), 11 deletions(-)
