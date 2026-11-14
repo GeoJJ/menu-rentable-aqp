@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ingredients, recipes, products, scenarioOptions, estimate, calculate } from './data/demo/model.js';
 import { soupRecipes, extraIngredients, extraProducts, weekdays, weekdayOf, shiftDate, demoHistory, traditionUrl } from './data/demo/weekly.js';
@@ -10,6 +10,15 @@ import { preparations } from './data/demo/preparations.js';
 import { formatRecipeAmount, picanteriaReference, recipeReferences, recipeSteps } from './data/demo/recipe-details.js';
 import './styles/style.css';
 
+const normalizeName = name => name.toLocaleLowerCase('es-PE').normalize('NFD').replace(/\p{M}/gu, '');
+const recipeGroups = {
+  soup: 'Caldos', starter: 'Entradas', main: 'Segundos',
+  picanteria: 'Picantería', seafood: 'Pescados y mariscos', drink: 'Refrescos',
+};
+const recipeGroup = recipe => recipe.recipeGroup ?? (
+  recipe.category === 'main' && recipe.style === 'Picantería' ? 'picanteria' :
+  recipe.category === 'main' && recipe.items.pescado > 0 ? 'seafood' : dishCategory(recipe)
+);
 const money = value => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value);
 const number = value => new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(value);
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Lima' }).format(new Date());
@@ -48,8 +57,12 @@ function Panel({ title, children, action }) {
 
 function App() {
   const [page, setPage] = useState('Planificar');
+  const [recipeFilter, setRecipeFilter] = useState('all');
+  const [recipeSearch, setRecipeSearch] = useState('');
   const [savedMenu, setMenu] = useStored('mr-recipes', []);
   const [savedInventory, setInventory] = useStored('mr-inventory', []);
+  const ingredientDialog = useRef(null);
+  const [ingredientError, setIngredientError] = useState('');
   const [savedCatalog, setCatalog] = useStored('mr-catalog', []);
   const [savedEntries, setEntries] = useStored('mr-records', []);
   const [savedPlans, setPlans] = useStored('mr-plans', []);
@@ -58,6 +71,11 @@ function App() {
     const original = preparations[recipe.id] ?? drinkRecipes.find(drink => drink.id === recipe.id)?.preparation;
     return recipe.preparation === original ? { ...recipe, preparation: '' } : recipe;
   });
+  const recipeQuery = normalizeName(recipeSearch.trim());
+  const filteredRecipes = menu.filter(recipe =>
+    (recipeFilter === 'all' || recipeGroup(recipe) === recipeFilter) &&
+    normalizeName(recipe.name).includes(recipeQuery)
+  );
   const inventory = mergeBy(defaultInventory, savedInventory, item => item.id);
   const catalog = mergeBy(defaultCatalog, savedCatalog, item => item.id);
   const entries = mergeBy(examples.entries, savedEntries, row => row.date + ':' + row.recipeId);
@@ -75,6 +93,25 @@ function App() {
   const [filter, setFilter] = useState('');
   const [notice, setNotice] = useState('');
   const [editing, setEditing] = useState(null);
+  const [ingredientSearch, setIngredientSearch] = useState('');
+  const ingredientQuery = normalizeName(ingredientSearch.trim());
+  const matchingIngredients = inventory.filter(item => normalizeName(item.name).includes(ingredientQuery));
+  const recipeNameInput = useRef(null);
+  const recipeOrigin = useRef(null);
+  const isEditingRecipe = editing !== null;
+  const editingTitle = editing?.id ? 'Editar receta · ' + recipeOrigin.current?.name : 'Nueva receta';
+
+  useEffect(() => {
+    if (isEditingRecipe) {
+      window.scrollTo(0, 0);
+      recipeNameInput.current?.focus({ preventScroll: true });
+    } else if (recipeOrigin.current) {
+      const { scrollY, buttonId } = recipeOrigin.current;
+      window.scrollTo(0, scrollY);
+      document.getElementById(buttonId)?.focus({ preventScroll: true });
+      recipeOrigin.current = null;
+    }
+  }, [isEditingRecipe]);
   const [reportDate, setReportDate] = useState(today);
   const selected = selectedIds.map(id => menu.find(recipe => recipe.id === id)).filter(Boolean);
   const setDayMenu = (ids, amount = budget) => setDailyMenus({ ...dailyMenus, [date]: { ids, budget: amount } });
@@ -128,13 +165,52 @@ function App() {
     return [row.date, actual?.name ?? plate?.recipe.name, plate?.quantity ?? '', actual?.made ?? '', actual?.sold ?? '', actual?.left ?? '', actual ? (actual.soldOut ? 'Sí' : 'No') : ''];
   });
   const catalogResults = catalog.filter(product => (product.name + ' ' + product.ingredient).toLowerCase().includes(filter.toLowerCase().trim()));
+  function openRecipeEditor(recipe, buttonId) {
+    const basePreparation = recipeSteps(recipe, inventory, number).join('\n');
+    recipeOrigin.current = { scrollY: window.scrollY, buttonId, name: recipe.name, basePreparation };
+    setIngredientSearch('');
+    setEditing({ ...recipe, preparation: recipe.preparation?.trim() ? recipe.preparation : basePreparation });
+    setNotice('');
+  }
+
   const navigate = next => {
+    recipeOrigin.current = null;
     setPage(next);
     setNotice('');
     setEditing(null);
     setGenerated(false);
     window.scrollTo(0, 0);
   };
+  function openIngredientDialog() {
+    ingredientDialog.current.querySelector('form').reset();
+    setIngredientError('');
+    ingredientDialog.current.showModal();
+  }
+
+  function saveIngredient(event) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const name = String(data.get('name')).trim();
+    if (!name) {
+      setIngredientError('Escribe el nombre del ingrediente.');
+      return;
+    }
+    if (inventory.some(item => normalizeName(item.name.trim()) === normalizeName(name))) {
+      setIngredientError('Ya existe un ingrediente con ese nombre.');
+      return;
+    }
+    const ingredient = {
+      id: crypto.randomUUID(),
+      name,
+      unit: data.get('unit'),
+      stock: Number(data.get('stock')),
+      cost: Number(data.get('cost')),
+    };
+    setInventory([...savedInventory, ingredient]);
+    ingredientDialog.current.close();
+    setNotice('Ingrediente agregado al inventario: ' + name + '.');
+  }
+
   function savePlan() {
     setPlans([...savedPlans.filter(plan => plan.date !== date), { ...active, date, budget }]);
     setReportDate(date);
@@ -146,8 +222,13 @@ function App() {
       setNotice('Agrega al menos un ingrediente con cantidad mayor que cero.');
       return;
     }
-    const recipe = { ...editing, name: editing.name.trim(), yield: Number(editing.yield), price: Number(editing.price), id: editing.id || crypto.randomUUID() };
+    const preparation = editing.preparation === recipeOrigin.current?.basePreparation ? '' : editing.preparation;
+    const recipe = { ...editing, preparation, name: editing.name.trim(), yield: Number(editing.yield), price: Number(editing.price), id: editing.id || crypto.randomUUID() };
     setMenu(editing.id ? menu.map(item => item.id === recipe.id ? recipe : item) : [...menu, recipe]);
+    if (page === 'Recetas') {
+      if (recipeFilter !== 'all') setRecipeFilter(recipeGroup(recipe));
+      if (!normalizeName(recipe.name).includes(recipeQuery)) setRecipeSearch('');
+    }
     setEditing(null);
     setNotice('Receta guardada.');
   }
@@ -171,12 +252,13 @@ function App() {
       <div className="sidebar-note"><i /> Datos de demostración</div>
     </aside>
     <main>
-      <header className="top"><span>MenúRentable AQP <b> / </b> {page}</span><span className="location">Arequipa, Perú</span></header>
+      <header className="top"><span>MenúRentable AQP <b> / </b> {isEditingRecipe ? editingTitle : page}</span><span className="location">Arequipa, Perú</span></header>
       <div className="content">
-        <div className="page-heading"><div><h1>{{ Planificar: 'Arma tu menú', Detalle: 'Detalle del menú', 'Recetas del menú': 'Recetas del menú', Recetas: 'Recetas', 'Insumos y precios': 'Insumos y precios', 'Registro diario': 'Registro diario', Historial: 'Historial', Reportes: 'Reportes' }[page]}</h1>
+        {isEditingRecipe ? <div className="page-heading"><h1>{editingTitle}</h1></div> : <div className="page-heading"><div><h1>{{ Planificar: 'Arma tu menú', Detalle: 'Detalle del menú', 'Recetas del menú': 'Recetas del menú', Recetas: 'Recetas', 'Insumos y precios': 'Insumos y precios', 'Registro diario': 'Registro diario', Historial: 'Historial', Reportes: 'Reportes' }[page]}</h1>
           <p>{{ Planificar: 'Elige qué vas a servir.', Detalle: 'Compara las porciones, los costos y las compras para la fecha elegida.', 'Recetas del menú': 'Consulta las cantidades y la preparación de los platos elegidos.', Recetas: 'Configura el rendimiento y los ingredientes de cada plato.', 'Insumos y precios': 'Consulta el catálogo de prueba y mantén tu inventario al día.', 'Registro diario': 'Guarda los resultados de producción y venta de cada plato.', Historial: 'Revisa los menús, las porciones, las compras y los resultados de cada fecha.', Reportes: 'Consulta el plan guardado y revisa el resultado de la semana.' }[page]}</p></div>
-          {page === 'Recetas' && <button className="primary" onClick={() => { setEditing({ name: '', category: 'main', yield: 10, price: 0, items: {} }); setNotice(''); }}>+ Nueva receta</button>}
-        </div>
+          {page === 'Insumos y precios' && <button className="primary" onClick={openIngredientDialog}>+ Nuevo ingrediente</button>}
+          {page === 'Recetas' && <button id="new-recipe" className="primary" onClick={() => openRecipeEditor({ name: '', category: 'main', yield: 10, price: 0, items: {} }, 'new-recipe')}>+ Nueva receta</button>}
+        </div>}
         {notice && <div className="notice" role="status">{notice}</div>}
 
         {page === 'Planificar' && <>
@@ -229,23 +311,51 @@ function App() {
         </>}
 
         {(page === 'Recetas' || page === 'Recetas del menú') && <>
-          {page === 'Recetas del menú' && <div className="back-row"><button className="secondary" onClick={() => navigate('Planificar')}>← Volver al menú</button><button className="secondary" onClick={() => navigate('Detalle')}>Ver detalles del menú</button></div>}
-          {editing && <Panel title={editing.id ? 'Editar receta' : 'Nueva receta'}>
+          {!isEditingRecipe && page === 'Recetas del menú' && <div className="back-row"><button className="secondary" onClick={() => navigate('Planificar')}>← Volver al menú</button><button className="secondary" onClick={() => navigate('Detalle')}>Ver detalles del menú</button></div>}
+          {editing && <section className="panel" aria-label="Formulario de receta">
             <form onSubmit={saveRecipe}>
-              <div className="form-grid"><label>Nombre<input required value={editing.name} onChange={event => setEditing({ ...editing, name: event.target.value })} /></label>
+              <div className="form-grid"><label>Nombre<input ref={recipeNameInput} required value={editing.name} onChange={event => setEditing({ ...editing, name: event.target.value })} /></label>
+              <label>Grupo en Recetas<select value={editing.recipeGroup ?? ''} onChange={event => setEditing({ ...editing, recipeGroup: event.target.value || undefined })}>
+                <option value="">Automático ({recipeGroups[recipeGroup({ ...editing, recipeGroup: undefined })]})</option>
+                {Object.entries(recipeGroups).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+              </select></label>
               <label>Tipo de plato<select value={editing.category ?? 'main'} onChange={event => setEditing({ ...editing, category: event.target.value })}><option value="main">Segundo</option><option value="soup">Caldo</option><option value="drink">Refresco</option></select></label>
               <label>{editing.category === 'drink' ? 'Rendimiento (vasos)' : 'Rendimiento (porciones)'}<input required type="number" min="1" step="1" value={editing.yield} onChange={event => setEditing({ ...editing, yield: event.target.value })} /></label>
               <label>Precio de venta por porción (S/)<input required type="number" min="0" step="0.01" value={editing.price} onChange={event => setEditing({ ...editing, price: event.target.value })} /></label></div>
               <label className="preparation-input">Preparación personalizada<textarea rows="4" placeholder="Déjalo vacío para mostrar los pasos de la receta base, si están disponibles." value={editing.preparation ?? ''} onChange={event => setEditing({ ...editing, preparation: event.target.value })} /></label>
-              <h3>Ingredientes por lote</h3><div className="form-grid">{inventory.map(item => <label key={item.id}>{item.name} ({item.unit})<input type="number" min="0" step="0.001" value={editing.items[item.id] ?? ''} onChange={event => setEditing({ ...editing, items: { ...editing.items, [item.id]: Number(event.target.value) } })} /></label>)}</div>
-              <div className="actions"><button className="primary">Guardar receta</button><button className="secondary" type="button" onClick={() => setEditing(null)}>Cancelar</button></div>
+              <h3>Ingredientes por lote</h3>
+              <label>Buscar ingrediente<input type="search" placeholder="Ej. garbanzo" value={ingredientSearch} onChange={event => setIngredientSearch(event.target.value)} /></label>
+              {matchingIngredients.length === 0 && <p role="status">No se encontraron ingredientes con ese nombre.</p>}
+              <div className="form-grid">{matchingIngredients.map(item => <label key={item.id}>{item.name} ({item.unit})<input type="number" min="0" step="0.001" value={editing.items[item.id] ?? ''} onChange={event => setEditing({ ...editing, items: { ...editing.items, [item.id]: Number(event.target.value) } })} /></label>)}</div>
+              <div className="actions"><button className="primary">{editing.id ? 'Guardar cambios' : 'Guardar receta'}</button><button className="secondary" type="button" onClick={() => { setNotice(''); setEditing(null); }}>Cancelar</button></div>
             </form>
-          </Panel>}
-          <div className="recipe-grid">{(page === 'Recetas del menú' ? selected : menu).map(recipe => {
+          </section>}
+          {!isEditingRecipe && page === 'Recetas' && <>
+            <div className="back-row">
+              <label>Buscar receta<input type="search" placeholder="Ej. caldo blanco" value={recipeSearch}
+                onChange={event => setRecipeSearch(event.target.value)} /></label>
+            </div>
+            <div className="back-row" role="group" aria-label="Filtrar recetas por grupo">
+              {Object.entries({ all: 'Todas', ...recipeGroups }).map(([id, label]) =>
+                <button key={id} type="button" className={recipeFilter === id ? 'primary' : 'secondary'}
+                  aria-pressed={recipeFilter === id} onClick={() => setRecipeFilter(id)}>{label}</button>
+              )}
+            </div>
+            {filteredRecipes.length === 0 && <p role="status">
+              {recipeQuery ? 'No se encontraron recetas con ese nombre en el grupo seleccionado.' :
+                'Aún no hay recetas en ' + (recipeGroups[recipeFilter] ?? 'el recetario') + '.'}
+            </p>}
+          </>}
+          {!isEditingRecipe && Object.entries(recipeGroups).map(([id, label]) => {
+            const group = (page === 'Recetas del menú' ? selected : filteredRecipes).filter(recipe => recipeGroup(recipe) === id);
+            if (!group.length) return null;
+            return <section key={id} className="panel" aria-label={label}>
+              <div className="panel-head"><h2>{label}</h2></div>
+              <div className="recipe-grid">{group.map(recipe => {
             const cost = inventory.reduce((sum, item) => sum + (recipe.items[item.id] || 0) * item.cost, 0);
             const steps = recipeSteps(recipe, inventory, number);
             const reference = recipeReferences[recipe.id] ?? (recipe.category === 'soup' || recipe.style === 'Picantería' ? picanteriaReference : null);
-            return <Panel key={recipe.id} title={recipe.name} action={<button className="secondary" onClick={() => { setEditing(recipe); setNotice(''); }}>Editar</button>}>
+            return <Panel key={recipe.id} title={recipe.name} action={<button id={'edit-recipe-' + recipe.id} className="secondary" onClick={event => openRecipeEditor(recipe, event.currentTarget.id)}>Editar</button>}>
               <p>{categoryLabels[dishCategory(recipe)]} · {recipe.yield} {recipe.category === 'drink' ? 'vasos' : 'porciones'} · Venta {money(recipe.price)} por {recipe.category === 'drink' ? 'vaso' : 'porción'}</p>
                             <h3>Ingredientes para el lote</h3>
               <ul className="ingredient-list">{inventory.filter(item => recipe.items[item.id] > 0).map(item => <li key={item.id}><span>{item.name}</span><b>{formatRecipeAmount(recipe.items[item.id], item.unit, number)}</b></li>)}</ul>
@@ -255,10 +365,28 @@ function App() {
               {reference && <p className="recipe-reference"><a href={reference[1]} target="_blank" rel="noreferrer">{reference[0]} ↗</a></p>}
               <div className="summary"><span>Costo del lote <b>{money(cost)}</b></span><span>Costo por porción <b>{money(cost / recipe.yield)}</b></span></div>
             </Panel>;
-          })}</div>
+              })}</div>
+            </section>;
+          })}
         </>}
 
         {page === 'Insumos y precios' && <>
+          <dialog ref={ingredientDialog} className="menu-dialog" aria-labelledby="ingredient-dialog-title">
+            <form onSubmit={saveIngredient} onInput={() => setIngredientError('')}>
+              <h2 id="ingredient-dialog-title">Nuevo ingrediente</h2>
+              <div className="preparation-input">
+                <label>Nombre<input name="name" required maxLength="100" autoFocus /></label>
+                <label>Unidad<select name="unit"><option value="kg">Kilogramos (kg)</option><option value="L">Litros (L)</option></select></label>
+                <label>Stock inicial<input name="stock" type="number" required min="0" step="0.001" defaultValue="0" /></label>
+                <label>Costo por unidad (S/)<input name="cost" type="number" required min="0" step="0.01" /></label>
+              </div>
+              {ingredientError && <p role="alert">{ingredientError}</p>}
+              <div className="actions">
+                <button className="primary">Guardar ingrediente</button>
+                <button className="secondary" type="button" onClick={() => ingredientDialog.current.close()}>Cancelar</button>
+              </div>
+            </form>
+          </dialog>
           <Panel title="Catálogo de productos">
             <label>Buscar ingrediente o producto<input type="search" placeholder="Ej. arroz" value={filter} onChange={event => setFilter(event.target.value)} /></label>
             <div className="table-wrap"><table><thead><tr><th>Producto</th><th>Precio por envase</th><th>Precio unitario</th><th>Procedencia</th></tr></thead><tbody>
