@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 export const apiBase =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+  import.meta.env.VITE_API_BASE_URL || "/api";
 export function usePlanning(payload) {
   const serialized = JSON.stringify(payload);
   const [result, setResult] = useState(null);

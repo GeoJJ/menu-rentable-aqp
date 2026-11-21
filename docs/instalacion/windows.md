@@ -90,3 +90,7 @@ La terminal solicita la contraseña. No ejecutar las migraciones primero en la b
 ## Trabajo con ramas
 
 Cada persona crea su rama desde el avance compartido. Acordar antes qué archivos editará cada integrante. Antes de un merge, verificar compilación, pruebas y que README y modelo de datos coincidan con el comportamiento. No subir node_modules, .venv, .env ni respaldos personales.
+
+## Inicio conjunto opcional
+
+Una vez preparados .venv, .env y las dependencias del frontend, se puede ejecutar npm run dev desde la raíz para iniciar ambos servicios. Usa .venv de la raíz (o backend/.venv como compatibilidad) y carga el .env de la raíz. Detén antes los procesos que ya usen 8000 y 5173.
