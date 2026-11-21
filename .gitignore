@@ -11,3 +11,11 @@ venv/
 .pytest_cache/
 .ruff_cache/
 data/local/
+
+*.log
+
+database/backups/
+*.dump
+*.backup
+
+.runtime/

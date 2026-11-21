@@ -1,11 +1,21 @@
+import os
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.router import api_router
 
 app = FastAPI(
     title="MenúRentable AQP API",
-    description="API para la planificación de porciones y compras de pequeños negocios de comida.",
-    version="0.1.0",
+    description="Planificación de porciones y compras de pequeños negocios de comida.",
+    version="0.2.0",
 )
-
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv(
+        "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(","),
+    allow_methods=["GET", "POST", "PUT"],
+    allow_headers=["Content-Type"],
+)
 app.include_router(api_router, prefix="/api")

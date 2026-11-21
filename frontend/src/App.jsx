@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { ingredients, recipes, products, scenarioOptions, estimate, calculate } from './data/demo/model.js';
-import { soupRecipes, extraIngredients, extraProducts, weekdays, weekdayOf, shiftDate, demoHistory, traditionUrl } from './data/demo/weekly.js';
+import { ingredients, recipes, products, scenarioOptions, calculate } from './data/demo/model.js';
+import { soupRecipes, extraIngredients, extraProducts, weekdays, weekdayOf, demoHistory } from './data/demo/weekly.js';
 import { History } from './components/History.jsx';
 import { mainRecipes, mainIngredients, mainProducts } from './data/demo/main-dishes.js';
 import { drinkRecipes, drinkIngredients, drinkProducts } from './data/demo/drinks.js';
@@ -9,6 +9,9 @@ import { DayMenu, MenuActions, dishCategory, categoryLabels } from './components
 import { preparations } from './data/demo/preparations.js';
 import { formatRecipeAmount, picanteriaReference, recipeReferences, recipeSteps } from './data/demo/recipe-details.js';
 import './styles/style.css';
+import { CompleteMenuPlanner } from './components/CompleteMenuPlanner.jsx';
+import { MenuOffers } from './components/MenuOffers.jsx';
+import { apiBase, usePlanning } from './usePlanning.js';
 
 const normalizeName = name => name.toLocaleLowerCase('es-PE').normalize('NFD').replace(/\p{M}/gu, '');
 const recipeGroups = {
@@ -22,7 +25,7 @@ const recipeGroup = recipe => recipe.recipeGroup ?? (
 const money = value => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value);
 const number = value => new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(value);
 const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Lima' }).format(new Date());
-const navigation = [['Planificar', '▦'], ['Recetas', '▤'], ['Insumos y precios', '⌕'], ['Registro diario', '✓'], ['Historial', '↺'], ['Reportes', '▥']];
+const navigation = [['Planificar menú completo', '▦'], ['Menús completos', '◈'], ['Planificar', '▦'], ['Recetas', '▤'], ['Insumos y precios', '⌕'], ['Registro diario', '✓'], ['Historial', '↺'], ['Reportes', '▥']];
 const defaultMenu = [...recipes.map(recipe => ({ ...recipe, category: 'main', style: 'Menú diario' })), ...mainRecipes, ...soupRecipes, ...drinkRecipes];
 const defaultInventory = [...ingredients, ...extraIngredients, ...mainIngredients, ...drinkIngredients];
 const defaultCatalog = [...products, ...extraProducts, ...mainProducts, ...drinkProducts];
@@ -56,7 +59,7 @@ function Panel({ title, children, action }) {
 }
 
 function App() {
-  const [page, setPage] = useState('Planificar');
+  const [page, setPage] = useState('Planificar menú completo');
   const [recipeFilter, setRecipeFilter] = useState('all');
   const [recipeSearch, setRecipeSearch] = useState('');
   const [savedMenu, setMenu] = useStored('mr-recipes', []);
@@ -67,6 +70,19 @@ function App() {
   const [savedEntries, setEntries] = useStored('mr-records', []);
   const [savedPlans, setPlans] = useStored('mr-plans', []);
   const [dailyMenus, setDailyMenus] = useStored('mr-daily-menus', {});
+  const [serverPlans, setServerPlans] = useState([]);
+  const [planLoadError, setPlanLoadError] = useState('');
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${apiBase}/plans`, { signal: controller.signal }).then(response => {
+      if (!response.ok) throw new Error();
+      return response.json();
+    }).then(setServerPlans).catch(error => {
+      if (error.name !== 'AbortError') setPlanLoadError('No se pudieron recuperar los planes de PostgreSQL.');
+    });
+    return () => controller.abort();
+  }, []);
+
   const menu = mergeBy(defaultMenu, savedMenu, item => item.id).map(recipe => {
     const original = preparations[recipe.id] ?? drinkRecipes.find(drink => drink.id === recipe.id)?.preparation;
     return recipe.preparation === original ? { ...recipe, preparation: '' } : recipe;
@@ -79,7 +95,7 @@ function App() {
   const inventory = mergeBy(defaultInventory, savedInventory, item => item.id);
   const catalog = mergeBy(defaultCatalog, savedCatalog, item => item.id);
   const entries = mergeBy(examples.entries, savedEntries, row => row.date + ':' + row.recipeId);
-  const plans = mergeBy(examples.plans, savedPlans, row => row.date);
+  const plans = mergeBy(mergeBy(examples.plans, serverPlans, row => row.date), savedPlans, row => row.date);
   const [date, setDate] = useState(today);
   const day = weekdayOf(date);
   const dayPlan = plans.find(plan => plan.date === date);
@@ -142,11 +158,12 @@ function App() {
     setDayMenu(selectedIds);
     setGenerated(true);
   }
-  const estimates = Object.fromEntries(selected.map(recipe => [recipe.id, estimate(recipe, date, entries)]));
-  const scenarios = scenarioOptions.map(option => calculate(option, selected, inventory, catalog, choices, estimates, Number(budget), {}));
-  const recommendation = scenarios.filter(item => item.feasible).sort((a, b) => b.margin - a.margin)[0];
-  const base = scenarios.find(item => item.name === scenario) ?? recommendation ?? scenarios[1];
-  const active = calculate(base, selected, inventory, catalog, choices, estimates, Number(budget), overrides);
+  const planning = usePlanning({ date, selected, inventory, catalog, choices, entries, budget: Number(budget), scenario, overrides });
+  const estimates = planning.data?.estimates ?? {};
+  const scenarios = planning.data?.scenarios ?? [];
+  const recommendation = planning.data?.recommendation;
+  const base = planning.data?.base ?? {};
+  const active = planning.data?.active ?? { plates: [], supplies: [], feasible: false, quantity: 0, purchase: 0, consumed: 0, margin: 0 };
   const currentPlan = plans.find(plan => plan.date === reportDate);
   const weekStart = new Date(reportDate + 'T12:00:00Z');
   weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() + 6) % 7);
@@ -211,10 +228,17 @@ function App() {
     setNotice('Ingrediente agregado al inventario: ' + name + '.');
   }
 
-  function savePlan() {
-    setPlans([...savedPlans.filter(plan => plan.date !== date), { ...active, date, budget }]);
-    setReportDate(date);
-    setNotice('Plan guardado. Ya puedes descargarlo desde Reportes.');
+  async function savePlan() {
+    if (!planning.data) return;
+    try {
+      const response = await fetch(`${apiBase}/plans`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date, selected, inventory, catalog, choices, entries, budget: Number(budget), scenario, overrides }) });
+      if (!response.ok) throw new Error('No se pudo guardar en PostgreSQL.');
+      const document = await response.json();
+      setPlans([...savedPlans.filter(plan => plan.date !== date), document]);
+      setReportDate(date);
+      setNotice('Plan guardado en PostgreSQL. Disponible en Reportes.');
+    } catch (error) { setNotice(error.message); }
   }
   function saveRecipe(event) {
     event.preventDefault();
@@ -254,13 +278,16 @@ function App() {
     <main>
       <header className="top"><span>MenúRentable AQP <b> / </b> {isEditingRecipe ? editingTitle : page}</span><span className="location">Arequipa, Perú</span></header>
       <div className="content">
-        {isEditingRecipe ? <div className="page-heading"><h1>{editingTitle}</h1></div> : <div className="page-heading"><div><h1>{{ Planificar: 'Arma tu menú', Detalle: 'Detalle del menú', 'Recetas del menú': 'Recetas del menú', Recetas: 'Recetas', 'Insumos y precios': 'Insumos y precios', 'Registro diario': 'Registro diario', Historial: 'Historial', Reportes: 'Reportes' }[page]}</h1>
-          <p>{{ Planificar: 'Elige qué vas a servir.', Detalle: 'Compara las porciones, los costos y las compras para la fecha elegida.', 'Recetas del menú': 'Consulta las cantidades y la preparación de los platos elegidos.', Recetas: 'Configura el rendimiento y los ingredientes de cada plato.', 'Insumos y precios': 'Consulta el catálogo de prueba y mantén tu inventario al día.', 'Registro diario': 'Guarda los resultados de producción y venta de cada plato.', Historial: 'Revisa los menús, las porciones, las compras y los resultados de cada fecha.', Reportes: 'Consulta el plan guardado y revisa el resultado de la semana.' }[page]}</p></div>
+        {isEditingRecipe ? <div className="page-heading"><h1>{editingTitle}</h1></div> : <div className="page-heading"><div><h1>{{ 'Planificar menú completo': 'Planificar menú completo', 'Menús completos': 'Menús completos', Planificar: 'Arma tu menú', Detalle: 'Detalle del menú', 'Recetas del menú': 'Recetas del menú', Recetas: 'Recetas', 'Insumos y precios': 'Insumos y precios', 'Registro diario': 'Registro diario', Historial: 'Historial', Reportes: 'Reportes' }[page]}</h1>
+          <p>{{ 'Planificar menú completo': 'Calcula porciones y compras con el precio único del menú.', 'Menús completos': 'Guarda el menú y su precio único.', Planificar: 'Elige qué vas a servir.', Detalle: 'Compara las porciones, los costos y las compras para la fecha elegida.', 'Recetas del menú': 'Consulta las cantidades y la preparación de los platos elegidos.', Recetas: 'Configura el rendimiento y los ingredientes de cada plato.', 'Insumos y precios': 'Consulta el catálogo de prueba y mantén tu inventario al día.', 'Registro diario': 'Guarda los resultados de producción y venta de cada plato.', Historial: 'Revisa los menús, las porciones, las compras y los resultados de cada fecha.', Reportes: 'Consulta el plan guardado y revisa el resultado de la semana.' }[page]}</p></div>
           {page === 'Insumos y precios' && <button className="primary" onClick={openIngredientDialog}>+ Nuevo ingrediente</button>}
           {page === 'Recetas' && <button id="new-recipe" className="primary" onClick={() => openRecipeEditor({ name: '', category: 'main', yield: 10, price: 0, items: {} }, 'new-recipe')}>+ Nueva receta</button>}
         </div>}
+        {planLoadError && <p role="status">{planLoadError}</p>}
         {notice && <div className="notice" role="status">{notice}</div>}
 
+        {page === 'Planificar menú completo' && <CompleteMenuPlanner />}
+        {page === 'Menús completos' && <MenuOffers />}
         {page === 'Planificar' && <>
           <DayMenu date={date} menu={menu} selected={selected} onDateChange={setPlanDate}
             onDishChange={changeDish} onSecondToggle={toggleSecond} onGenerate={generateMenu} />
@@ -269,6 +296,7 @@ function App() {
         </>}
 
         {page === 'Detalle' && <>
+          <p className="notice" role="status">Los menús completos ya se guardan con precio único en su nueva sección. Este planificador todavía usa el cálculo anterior por plato; sus ingresos y margen están pendientes de adaptación.</p>
           <div className="back-row"><button className="secondary" onClick={() => navigate('Planificar')}>← Volver al menú</button><button className="secondary" onClick={() => navigate('Recetas del menú')}>Ver recetas elegidas</button></div>
           <Panel title={weekdays[day] + ' · ' + date}>
             <div className="detail-controls">
@@ -276,7 +304,7 @@ function App() {
               <label>Presupuesto de compras (S/)<input type="number" min="0" step="0.01" value={budget} onChange={event => setDayMenu(selectedIds, event.target.value === '' ? '' : Math.max(0, Number(event.target.value)))} /></label>
             </div>
           </Panel>
-          {selected.length ? <>
+          {selected.length && planning.data ? <>
             <div className="section-heading"><h2>Escenarios de producción</h2><span>Estimaciones según las ventas registradas</span></div>
             <div className="scenarios">{scenarios.map(item => <button key={item.name} className={'scenario ' + (base.name === item.name ? 'picked' : '')} aria-pressed={base.name === item.name}
               onClick={() => { setScenario(item.name); setOverrides({}); setNotice(''); }}>
@@ -307,7 +335,7 @@ function App() {
                   <td>{money(item.purchase)}</td><td>{number(item.remaining)} {item.unit}</td></tr>)}
               </tbody></table></div>
             </Panel>
-          </> : <Panel title="Escenarios de producción"><p>Selecciona al menos un plato para calcular el plan.</p></Panel>}
+          </> : <Panel title="Escenarios de producción"><p>{!selected.length ? 'Selecciona al menos un plato para calcular el plan.' : planning.error || 'Calculando el plan en Python…'}</p></Panel>}
         </>}
 
         {(page === 'Recetas' || page === 'Recetas del menú') && <>
