@@ -9,6 +9,10 @@ import { DayMenu, MenuActions, dishCategory, categoryLabels } from './components
 import { preparations } from './data/demo/preparations.js';
 import { formatRecipeAmount, picanteriaReference, recipeReferences, recipeSteps } from './data/demo/recipe-details.js';
 import './styles/style.css';
+import './styles/theme.css';
+import { HomeOverview } from './components/HomeOverview.jsx';
+
+const apiBase = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 
 const normalizeName = name => name.toLocaleLowerCase('es-PE').normalize('NFD').replace(/\p{M}/gu, '');
 const recipeGroups = {
@@ -57,6 +61,21 @@ function Panel({ title, children, action }) {
 
 function App() {
   const [page, setPage] = useState('Planificar');
+  const [apiStatus, setApiStatus] = useState('checking');
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    fetch(apiBase + '/health', { signal: controller.signal })
+      .then(response => {
+        if (!response.ok) throw new Error('El servidor no respondió.');
+        return response.json();
+      })
+      .then(result => setApiStatus(result.status === 'ok' ? 'connected' : 'offline'))
+      .catch(() => setApiStatus('offline'))
+      .finally(() => clearTimeout(timeout));
+    return () => { clearTimeout(timeout); controller.abort(); };
+  }, []);
   const [recipeFilter, setRecipeFilter] = useState('all');
   const [recipeSearch, setRecipeSearch] = useState('');
   const [savedMenu, setMenu] = useStored('mr-recipes', []);
@@ -262,6 +281,8 @@ function App() {
         {notice && <div className="notice" role="status">{notice}</div>}
 
         {page === 'Planificar' && <>
+          <HomeOverview recipes={menu} inventory={inventory} selected={selected} entries={entries}
+            date={date} apiStatus={apiStatus} navigate={navigate} />
           <DayMenu date={date} menu={menu} selected={selected} onDateChange={setPlanDate}
             onDishChange={changeDish} onSecondToggle={toggleSecond} onGenerate={generateMenu} />
           {generated && <MenuActions date={date} dishes={selected} onClose={() => setGenerated(false)}
@@ -477,9 +498,3 @@ function App() {
   </div>;
 }
 createRoot(document.getElementById('root')).render(<App />);
-
-
-
-
-
-
