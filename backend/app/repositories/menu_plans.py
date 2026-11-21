@@ -35,7 +35,7 @@ def load_menu(c, menu_id):
         component["ingredientes"] = (
             c.cursor(row_factory=dict_row)
             .execute(
-                "SELECT i.id,i.nombre,i.unidad_codigo,ri.cantidad,inv.existencia,inv.costo_unitario FROM receta_ingredientes ri JOIN ingredientes i ON i.id=ri.ingrediente_id LEFT JOIN inventario inv ON inv.ingrediente_id=i.id WHERE ri.receta_id=%s AND i.activo",
+                "SELECT i.id,i.nombre,i.unidad_codigo,ri.cantidad,inv.existencia,inv.costo_unitario,(SELECT precio/cantidad_base FROM cotizaciones WHERE ingrediente_id=i.id AND tipo_precio='compra' ORDER BY recuperado_en DESC,id DESC LIMIT 1) AS precio_compra FROM receta_ingredientes ri JOIN ingredientes i ON i.id=ri.ingrediente_id LEFT JOIN inventario inv ON inv.ingrediente_id=i.id WHERE ri.receta_id=%s AND i.activo",
                 (component["id"],),
             )
             .fetchall()
@@ -161,3 +161,44 @@ def saved_menu_plans():
             )
             .fetchall()
         )
+
+
+def saved_menu_plan(plan_id):
+    """Reconstruye un resumen a partir de las capturas históricas del plan."""
+    with connect() as c:
+        cursor = c.cursor(row_factory=dict_row)
+        plan = cursor.execute(
+            "SELECT p.id,p.fecha,p.presupuesto,o.oferta_id,o.nombre_oferta,o.precio_menu,o.menus_planificados,o.menus_venta_estimada FROM planes_diarios p JOIN plan_ofertas o ON o.plan_id=p.id WHERE p.id=%s",
+            (plan_id,),
+        ).fetchone()
+        if not plan:
+            raise ValueError("No se encontró el plan guardado")
+        components = cursor.execute(
+            "SELECT receta_id AS id,nombre_receta AS nombre,categoria FROM plan_platos WHERE plan_id=%s ORDER BY id",
+            (plan_id,),
+        ).fetchall()
+        supplies = cursor.execute(
+            "SELECT ingrediente_id AS id,nombre_ingrediente AS nombre,unidad_codigo AS unidad,necesario,faltante,envases,envases*precio_envase AS compra,costo_consumido FROM plan_insumos WHERE plan_id=%s ORDER BY nombre_ingrediente",
+            (plan_id,),
+        ).fetchall()
+        purchase = sum((s["compra"] for s in supplies), Decimal(0))
+        cost = sum((s["costo_consumido"] for s in supplies), Decimal(0))
+        income = plan["precio_menu"] * plan["menus_venta_estimada"]
+        return {
+            "id": plan["id"],
+            "menu": {
+                "id": plan["oferta_id"],
+                "nombre": plan["nombre_oferta"],
+                "precio_menu": plan["precio_menu"],
+            },
+            "fecha": plan["fecha"],
+            "cantidad": plan["menus_planificados"],
+            "presupuesto": plan["presupuesto"],
+            "ingreso_estimado": income,
+            "compra": purchase,
+            "costo_ingredientes": cost,
+            "margen_estimado": income - cost,
+            "factible": purchase <= plan["presupuesto"],
+            "componentes": components,
+            "insumos": supplies,
+        }

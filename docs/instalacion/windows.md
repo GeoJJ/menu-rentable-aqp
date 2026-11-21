@@ -62,11 +62,11 @@ Si frontend/.env ya existe, revisarlo antes de sobrescribirlo. Abrir http://127.
 ## Comprobación por integrante
 
 1. Abrir http://127.0.0.1:8000/api/health y verificar status ok.
-2. Entrar en Menús completos y guardar su propio menú y precio único.
+2. Entrar en Preparar mi plan, crear una combinación en el paso Menú y guardar su precio único.
 3. Recargar: el menú debe permanecer.
-4. Entrar en Planificar menú completo; ingresar cantidades, existencias y precios reales o de una prueba claramente identificada.
+4. Continuar por Cantidad e Insumos; ingresar cantidades, existencias y precios reales o de una prueba claramente identificada.
 5. Calcular: ingreso = número de menús por precio único.
-6. Guardar un plan dentro del presupuesto y recargar; debe aparecer al pie del nuevo planificador.
+6. Guardar un plan dentro del presupuesto y recargar; debe aparecer en Mis planes, con detalle y descarga CSV.
 7. Si falla, compartir el mensaje, paso y captura sin credenciales. No resetear la base como primera solución.
 
 ## Respaldo y restauración

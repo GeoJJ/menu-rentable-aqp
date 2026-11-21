@@ -1,64 +1,52 @@
-import React, { useEffect, useState } from "react";
-import { apiBase } from "../usePlanning.js";
-const money = (v) =>
-  new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(
-    v,
+import React, { useEffect, useRef, useState } from "react";
+import { api, money } from "../services/api.js";
+import { MenuOffers } from "./MenuOffers.jsx";
+import { MenuPlanSummary } from "./MenuPlanSummary.jsx";
+const today = () =>
+  new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Lima" }).format(
+    new Date(),
   );
-const quantity = (v) =>
-  new Intl.NumberFormat("es-PE", { maximumFractionDigits: 4 }).format(v);
-async function request(path, body) {
-  const response = await fetch(
-    `${apiBase}/${path}`,
-    body
-      ? {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        }
-      : {},
-  );
-  const data = await response.json();
-  if (!response.ok)
-    throw new Error(
-      typeof data.detail === "string"
-        ? data.detail
-        : "Revisa los datos ingresados.",
-    );
-  return data;
-}
-export function CompleteMenuPlanner() {
-  const [menus, setMenus] = useState([]),
+export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
+  const [step, setStep] = useState(0),
+    [menus, setMenus] = useState([]),
     [selected, setSelected] = useState(""),
-    [details, setDetails] = useState(null);
+    [details, setDetails] = useState(null),
+    [creating, setCreating] = useState(false);
+  const [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(""),
+    [result, setResult] = useState(null);
   const [form, setForm] = useState({
-    fecha: new Intl.DateTimeFormat("sv-SE", {
-      timeZone: "America/Lima",
-    }).format(new Date()),
+    fecha: today(),
     cantidad: 30,
     presupuesto: 200,
     insumos: {},
   });
-  const [result, setResult] = useState(null),
-    [saved, setSaved] = useState([]),
-    [error, setError] = useState(""),
-    [busy, setBusy] = useState(false);
+  const title = useRef(null);
   useEffect(() => {
-    Promise.all([request("menus"), request("menu-plans")])
-      .then(([m, p]) => {
-        setMenus(m);
-        setSaved(p);
+    const controller = new AbortController();
+    api("menus", { signal: controller.signal })
+      .then(setMenus)
+      .catch((e) => {
+        if (e.name !== "AbortError") setError(e.message);
       })
-      .catch((e) => setError(e.message));
-  }, []);
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [revision]);
   useEffect(() => {
-    let cancelled = false;
+    title.current?.focus();
+  }, [step]);
+  useEffect(() => {
+    const controller = new AbortController();
     setDetails(null);
     setResult(null);
-    setError("");
-    if (selected)
-      request(`menus/${selected}/requirements`)
+    setStep((value) => (value === 3 ? 2 : value));
+    if (selected) {
+      setLoading(true);
+      api(`menus/${selected}/requirements`, { signal: controller.signal })
         .then((d) => {
-          if (cancelled) return;
           setDetails(d);
           setForm((f) => ({
             ...f,
@@ -67,20 +55,27 @@ export function CompleteMenuPlanner() {
                 i.id,
                 {
                   existencia: i.existencia ?? "",
-                  costo_unitario: i.costo_unitario ?? "",
-                  precio_compra: "",
+                  costo_unitario:
+                    i.existencia === 0 ? "0" : (i.costo_unitario ?? ""),
+                  precio_compra: i.precio_compra ?? "",
                 },
               ]),
             ),
           }));
         })
         .catch((e) => {
-          if (!cancelled) setError(e.message);
+          if (e.name !== "AbortError") setError(e.message);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
         });
-    return () => {
-      cancelled = true;
-    };
-  }, [selected]);
+    }
+    return () => controller.abort();
+  }, [selected, revision]);
+  function next(value) {
+    setError("");
+    setStep(value);
+  }
   function change(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
     setResult(null);
@@ -107,9 +102,9 @@ export function CompleteMenuPlanner() {
     event.preventDefault();
     setBusy(true);
     setError("");
-    setResult(null);
     try {
-      setResult(await request(`menus/${selected}/calculate`, form));
+      setResult(await api(`menus/${selected}/calculate`, { body: form }));
+      setStep(3);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -120,135 +115,217 @@ export function CompleteMenuPlanner() {
     setBusy(true);
     setError("");
     try {
-      await request(`menus/${selected}/plans`, form);
-      setSaved(await request("menu-plans"));
-      setResult(null);
-      setError("Plan guardado en PostgreSQL.");
+      const saved = await api(`menus/${selected}/plans`, { body: form });
+      onSaved(saved);
     } catch (e) {
       setError(e.message);
     } finally {
       setBusy(false);
     }
   }
+  function created(menu) {
+    setMenus((m) => [{ ...menu, componentes: [] }, ...m]);
+    setSelected(String(menu.id));
+    setCreating(false);
+    setError("");
+  }
   return (
-    <>
-      <section className="panel">
-        <h2>Planificar un menú completo</h2>
-        <p>
-          Elige un menú guardado y las unidades que esperas vender. Los ingresos
-          usan su precio único; cada unidad incluye caldo, segundo y refresco.
-        </p>
-        <p>
-          Esta primera planificación usa la cantidad ingresada y supone que se
-          vende toda. Las compras se calculan por kilos, litros o unidades
-          completos. Usa las cantidades que tienes en tu cocina y los precios
-          que pagas a tu proveedor.
-        </p>
-        {error && <p role="status">{error}</p>}
-        <label>
-          Menú
-          <select
-            value={selected}
-            disabled={busy}
-            onChange={(e) => setSelected(e.target.value)}
+    <div className="journey">
+      <ol className="flow-steps" aria-label="Progreso del plan">
+        {["Menú", "Cantidad", "Insumos", "Resultado"].map((label, index) => (
+          <li
+            key={label}
+            aria-current={step === index ? "step" : undefined}
+            className={index === step ? "current" : index < step ? "done" : ""}
           >
-            <option value="">Seleccionar menú completo</option>
-            {menus.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.nombre} · {money(m.precio_menu)}
-              </option>
-            ))}
-          </select>
-        </label>
-        {!menus.length && (
-          <p>Registra primero una combinación en Menús completos.</p>
+            <span>{index < step ? "✓" : index + 1}</span>
+            {label}
+          </li>
+        ))}
+      </ol>
+      <section className="panel flow-panel">
+        <h2 ref={title} tabIndex={-1}>
+          {
+            [
+              "Elige qué vas a servir",
+              "¿Cuántos menús prepararás?",
+              "Revisa lo que tienes y lo que cuesta",
+              "Revisa tu plan antes de guardarlo",
+            ][step]
+          }
+        </h2>
+        {error && (
+          <p className="flow-error" role="alert">
+            {error}
+          </p>
         )}
-        {details && (
+        {step === 0 && (
+          <>
+            <p>
+              Usa una combinación guardada o crea una aquí. Cada menú incluye
+              caldo, segundo y refresco con un solo precio.
+            </p>
+            {loading && <p role="status">Cargando menú…</p>}
+            {!creating && (
+              <>
+                <label>
+                  Tu menú
+                  <select
+                    value={selected}
+                    onChange={(e) => {
+                      setSelected(e.target.value);
+                      setError("");
+                    }}
+                  >
+                    <option value="">Seleccionar una combinación</option>
+                    {menus.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.nombre} · {money(m.precio_menu)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {details && (
+                  <ul className="flow-courses">
+                    {[...details.componentes]
+                      .sort(
+                        (a, b) =>
+                          ["caldo", "segundo", "refresco"].indexOf(
+                            a.categoria,
+                          ) -
+                          ["caldo", "segundo", "refresco"].indexOf(b.categoria),
+                      )
+                      .map((c) => (
+                        <li key={c.id}>
+                          <span>{c.categoria}</span>
+                          <b>{c.nombre}</b>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                <div className="flow-actions">
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      setCreating(true);
+                      setError("");
+                    }}
+                  >
+                    + Crear otra combinación
+                  </button>
+                  <button
+                    className="primary"
+                    disabled={!details || loading}
+                    onClick={() => next(1)}
+                  >
+                    Continuar con este menú →
+                  </button>
+                </div>
+              </>
+            )}
+            {creating && (
+              <MenuOffers
+                onCreated={created}
+                onCancel={() => setCreating(false)}
+              />
+            )}
+          </>
+        )}
+        {step === 1 && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              next(2);
+            }}
+          >
+            <p>
+              {details?.menu.nombre} · {money(details?.menu.precio_menu)} por
+              menú completo.
+            </p>
+            <div className="form-grid">
+              <label>
+                ¿Para qué día?
+                <input
+                  type="date"
+                  required
+                  value={form.fecha}
+                  onChange={(e) => change("fecha", e.target.value)}
+                />
+              </label>
+              <label>
+                Menús que esperas vender
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  max="100000"
+                  step="1"
+                  value={form.cantidad}
+                  onChange={(e) => change("cantidad", Number(e.target.value))}
+                />
+              </label>
+              <label>
+                ¿Cuánto puedes gastar en compras? (S/)
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={form.presupuesto}
+                  onChange={(e) => change("presupuesto", e.target.value)}
+                />
+              </label>
+            </div>
+            <p className="flow-footnote">
+              La cantidad es tu estimación de ventas. El resultado supondrá que
+              vendes todos esos menús.
+            </p>
+            <div className="flow-actions">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => next(0)}
+              >
+                ← Cambiar menú
+              </button>
+              <button className="primary">Revisar ingredientes →</button>
+            </div>
+          </form>
+        )}
+        {step === 2 && (
           <form onSubmit={calculate}>
-            <fieldset disabled={busy} style={{ border: 0, padding: 0 }}>
-              <div className="form-grid">
-                <label>
-                  Fecha
-                  <input
-                    required
-                    type="date"
-                    value={form.fecha}
-                    onChange={(e) => change("fecha", e.target.value)}
-                  />
-                </label>
-                <label>
-                  Menús a preparar y vender
-                  <input
-                    required
-                    type="number"
-                    min="1"
-                    max="100000"
-                    step="1"
-                    value={form.cantidad}
-                    onChange={(e) => change("cantidad", Number(e.target.value))}
-                  />
-                </label>
-                <label>
-                  Presupuesto de compras (S/)
-                  <input
-                    required
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.presupuesto}
-                    onChange={(e) => change("presupuesto", e.target.value)}
-                  />
-                </label>
-              </div>
-              <ul>
-                {details.componentes.map((c) => (
-                  <li key={c.id}>
-                    {c.categoria}: {c.nombre}
-                  </li>
-                ))}
-              </ul>
-              <h3>¿Qué tienes y cuánto cuesta comprar?</h3>
+            <fieldset disabled={busy}>
               <p>
-                Por cada ingrediente, indica cuánto tienes ahora. Si no tienes
-                nada, escribe 0. Los precios siempre corresponden a 1 kg, 1
-                litro o 1 unidad, según indique la fila.
+                Para {form.cantidad} menús de {details?.menu.nombre}. Indica
+                cuánto tienes en tu cocina y el precio por kilo, litro o unidad.
               </p>
-              <div className="context">
-                <b>Ejemplo con arroz</b>
+              <details className="flow-help">
+                <summary>¿Cómo lleno estos datos?</summary>
                 <p>
-                  Si tienes 2 kg que compraste a S/4 por kilo, escribe 2 en
-                  «Tengo ahora» y 4 en «Lo compré a». Si hoy el proveedor cobra
-                  S/4.50 por kilo, escribe 4.50 en «Hoy cuesta». Si una bolsa de
-                  5 kg cuesta S/20, el precio por kilo es 20 ÷ 5 = S/4.
+                  Si tienes 2 kg de arroz que compraste a S/4 por kilo, escribe
+                  2 en «Tengo ahora» y 4 en «Lo compré a». Si hoy tu proveedor
+                  cobra S/4.50 por kilo, escribe 4.50 en «Hoy cuesta».
                 </p>
-              </div>
+                <p>
+                  Si no tienes, escribe 0 y no necesitas llenar el precio
+                  anterior. Si no recuerdas cuánto pagaste, puedes usar el
+                  precio de hoy como aproximación. Una bolsa de 5 kg a S/20
+                  equivale a S/4 por kilo.
+                </p>
+              </details>
               <div className="table-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>Ingrediente</th>
-                      <th>
-                        Tengo ahora
-                        <small style={{ display: "block" }}>
-                          Cantidad disponible en tu cocina
-                        </small>
-                      </th>
-                      <th>
-                        Lo compré a
-                        <small style={{ display: "block" }}>
-                          Precio que pagaste por lo que tienes
-                        </small>
-                      </th>
-                      <th>
-                        Hoy cuesta
-                        <small style={{ display: "block" }}>
-                          Precio actual de tu proveedor
-                        </small>
-                      </th>
+                      <th>Tengo ahora</th>
+                      <th>Lo compré a</th>
+                      <th>Hoy cuesta</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {details.insumos.map((i) => {
+                    {details?.insumos.map((i) => {
                       const unit =
                         i.unidad_codigo === "L"
                           ? "litro"
@@ -258,11 +335,6 @@ export function CompleteMenuPlanner() {
                       const noStock =
                         form.insumos[i.id]?.existencia !== "" &&
                         Number(form.insumos[i.id]?.existencia) === 0;
-                      const labels = {
-                        existencia: `Cantidad disponible de ${i.nombre} en ${unit}`,
-                        costo_unitario: `Precio pagado por ${unit} de ${i.nombre}`,
-                        precio_compra: `Precio actual por ${unit} de ${i.nombre}`,
-                      };
                       return (
                         <tr key={i.id}>
                           <th>{i.nombre}</th>
@@ -270,27 +342,23 @@ export function CompleteMenuPlanner() {
                             "existencia",
                             "costo_unitario",
                             "precio_compra",
-                          ].map((key) => (
+                          ].map((key, index) => (
                             <td key={key}>
                               <label>
                                 <span>
-                                  {key === "existencia"
-                                    ? unit
-                                    : `S/ por ${unit}`}
+                                  {index === 0 ? unit : `S/ por ${unit}`}
                                 </span>
                                 <input
-                                  aria-label={labels[key]}
+                                  aria-label={`${["Tengo ahora", "Lo compré a", "Hoy cuesta"][index]}: ${i.nombre}`}
                                   required
-                                  disabled={key === "costo_unitario" && noStock}
                                   type="number"
                                   min="0"
                                   step="0.0001"
+                                  disabled={key === "costo_unitario" && noStock}
                                   placeholder={
-                                    key === "existencia"
+                                    index === 0
                                       ? "0 si no tienes"
-                                      : key === "costo_unitario"
-                                        ? "Precio que pagaste"
-                                        : "Precio de hoy"
+                                      : "Precio por " + unit
                                   }
                                   value={form.insumos[i.id]?.[key] ?? ""}
                                   onChange={(e) =>
@@ -299,10 +367,7 @@ export function CompleteMenuPlanner() {
                                 />
                               </label>
                               {key === "costo_unitario" && noStock && (
-                                <small>
-                                  No necesitas llenarlo: no tienes este
-                                  ingrediente.
-                                </small>
+                                <small>Sin existencias</small>
                               )}
                             </td>
                           ))}
@@ -312,110 +377,49 @@ export function CompleteMenuPlanner() {
                   </tbody>
                 </table>
               </div>
-              <p>
-                ¿No recuerdas cuánto pagaste por lo que tienes? Puedes usar el
-                precio de hoy como aproximación. El margen también será
-                aproximado.
-              </p>
-              <button className="primary">
-                {busy ? "Procesando…" : "Calcular porciones y compras"}
-              </button>
+              <div className="flow-actions">
+                <button
+                  type="button"
+                  className="secondary"
+                  onClick={() => next(1)}
+                >
+                  ← Cambiar cantidad
+                </button>
+                <button className="primary">
+                  {busy ? "Calculando…" : "Calcular mi plan →"}
+                </button>
+              </div>
             </fieldset>
           </form>
         )}
+        {step === 3 && result && (
+          <>
+            <MenuPlanSummary plan={result} />
+            {!result.factible && (
+              <p className="flow-error" role="alert">
+                La compra supera tu presupuesto. Vuelve para ajustar la cantidad
+                o el presupuesto.
+              </p>
+            )}
+            <div className="flow-actions">
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() => next(2)}
+              >
+                ← Revisar datos
+              </button>
+              <button
+                className="primary"
+                disabled={busy || !result.factible}
+                onClick={save}
+              >
+                {busy ? "Guardando…" : "Guardar plan y ver resumen"}
+              </button>
+            </div>
+          </>
+        )}
       </section>
-      {result && (
-        <section className="panel">
-          <h2>Resultado del menú completo</h2>
-          <div className="summary">
-            <span>
-              Menús <b>{result.cantidad}</b>
-            </span>
-            <span>
-              Precio único <b>{money(result.menu.precio_menu)}</b>
-            </span>
-            <span>
-              Ingresos estimados <b>{money(result.ingreso_estimado)}</b>
-            </span>
-            <span>
-              Ingredientes consumidos <b>{money(result.costo_ingredientes)}</b>
-            </span>
-            <span>
-              Compra <b>{money(result.compra)}</b>
-            </span>
-            <span>
-              Margen estimado <b>{money(result.margen_estimado)}</b>
-            </span>
-          </div>
-          <p>
-            El margen descuenta ingredientes; no incluye alquiler, personal ni
-            otros gastos. La compra incluye unidades sobrantes que pueden quedar
-            en inventario.
-          </p>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Ingrediente</th>
-                  <th>Necesario</th>
-                  <th>Faltante</th>
-                  <th>Unidades de compra</th>
-                  <th>Compra</th>
-                </tr>
-              </thead>
-              <tbody>
-                {result.insumos.map((i) => (
-                  <tr key={i.id}>
-                    <th>{i.nombre}</th>
-                    <td>
-                      {quantity(i.necesario)} {i.unidad}
-                    </td>
-                    <td>
-                      {quantity(i.faltante)} {i.unidad}
-                    </td>
-                    <td>
-                      {i.envases} × 1 {i.unidad}
-                    </td>
-                    <td>{money(i.compra)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!result.factible && (
-            <p role="status">
-              La compra supera el presupuesto. Ajusta las cantidades o el
-              presupuesto.
-            </p>
-          )}
-          <button
-            className="primary"
-            disabled={busy || !result.factible}
-            onClick={save}
-          >
-            {busy ? "Guardando…" : "Guardar plan completo"}
-          </button>
-        </section>
-      )}
-      <section className="panel">
-        <h2>Planes de menús completos guardados</h2>
-        {!saved.length && <p>Aún no hay planes guardados.</p>}
-        {saved.map((p) => (
-          <article key={p.id}>
-            <h3>
-              {p.fecha} · {p.nombre_oferta}
-            </h3>
-            <p>
-              {p.menus_planificados} menús × {money(p.precio_menu)} ={" "}
-              {money(p.ingreso_estimado)} de ingresos estimados. Compra:{" "}
-              {money(p.compra)}. Ingredientes: {money(p.costo_ingredientes)}.
-              Margen estimado:{" "}
-              {money(Number(p.ingreso_estimado) - Number(p.costo_ingredientes))}
-              .
-            </p>
-          </article>
-        ))}
-      </section>
-    </>
+    </div>
   );
 }

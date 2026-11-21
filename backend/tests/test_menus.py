@@ -1,51 +1,4 @@
-import os
-import uuid
 from decimal import Decimal
-from pathlib import Path
-
-import psycopg
-import pytest
-from app.main import app
-from app.repositories import menus
-from fastapi.testclient import TestClient
-
-
-@pytest.fixture
-def client(monkeypatch):
-    url = os.getenv("TEST_DATABASE_URL")
-    if not url:
-        pytest.skip("Requiere TEST_DATABASE_URL")
-    schema = "test_menu_" + uuid.uuid4().hex
-    with psycopg.connect(url, autocommit=True) as c:
-        c.execute(
-            psycopg.sql.SQL("CREATE SCHEMA {}").format(psycopg.sql.Identifier(schema))
-        )
-
-    def connection():
-        return psycopg.connect(url, options=f"-c search_path={schema}")
-
-    try:
-        with connection() as c:
-            c.execute(
-                (
-                    Path(__file__).resolve().parents[2]
-                    / "database/migrations/001_relacional_menu.sql"
-                ).read_text(encoding="utf-8-sig")
-            )
-            for category in ["caldo", "segundo", "refresco"]:
-                c.execute(
-                    "INSERT INTO recetas(nombre,categoria,rendimiento) VALUES (%s,%s,10)",
-                    (category, category),
-                )
-        monkeypatch.setattr(menus, "connect", connection)
-        yield TestClient(app), connection
-    finally:
-        with psycopg.connect(url, autocommit=True) as c:
-            c.execute(
-                psycopg.sql.SQL("DROP SCHEMA {} CASCADE").format(
-                    psycopg.sql.Identifier(schema)
-                )
-            )
 
 
 def test_menu_roundtrip_single_price(client):
@@ -136,6 +89,15 @@ def test_complete_menu_price_and_saved_snapshot(client, monkeypatch):
     saved = api.get("/api/menu-plans").json()[0]
     assert Decimal(str(saved["ingreso_estimado"])) == 360
     assert Decimal(str(saved["precio_menu"])) == 12
+    detail = api.get(f"/api/menu-plans/{saved['id']}")
+    assert detail.status_code == 200
+    snapshot = detail.json()
+    assert Decimal(str(snapshot["menu"]["precio_menu"])) == 12
+    assert Decimal(str(snapshot["ingreso_estimado"])) == 360
+    assert len(snapshot["componentes"]) == 3
+    assert len(snapshot["insumos"]) == 1
+    assert Decimal(str(snapshot["compra"])) == 24
+
     assert api.post(f"/api/menus/{menu['id']}/plans", json=payload).status_code == 422
     with connection() as c:
         assert c.execute("SELECT count(*) FROM planes_diarios").fetchone()[0] == 1

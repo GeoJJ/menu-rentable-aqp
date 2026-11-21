@@ -35,17 +35,23 @@ docs/                 Instalación, modelo de datos y coordinación
 
 ## Recorrido actual
 
-- **Menús completos:** crear una combinación de caldo, segundo y refresco con precio único.
-- **Planificar menú completo:** ingresar fecha, menús esperados, presupuesto, existencias y precios por ingrediente. Calcular y guardar. Consultar planes guardados al pie de la misma pantalla.
-- Las compras se redondean a unidades de 1 kg, 1 L o 1 unidad. No se manejan otras presentaciones en este recorrido todavía.
-- Los ingresos suponen la venta de todos los menús ingresados; no son un pronóstico histórico. El margen descuenta ingredientes, no personal, alquiler ni otros gastos.
-- Guardar un plan conserva su precio, composición y cantidades. Guarda existencias iniciales declaradas; no las descuenta. Solo se permite un plan por fecha y todavía no se edita ni reemplaza desde esta pantalla.
+La navegación principal tiene dos destinos: Preparar mi plan y Mis planes.
+
+1. Menú: elegir una combinación guardada o crearla en el mismo paso con caldo, segundo, refresco y precio único.
+2. Cantidad: indicar fecha, menús esperados y presupuesto.
+3. Insumos: revisar existencias y precios con ayudas y unidades visibles.
+4. Resultado: revisar costos y compras, ajustar si hace falta y guardar.
+5. Mis planes: el guardado abre el resumen histórico y permite descargarlo con su lista de compras en CSV. Un plan anterior puede abrirse desde la misma lista.
+
+La información del borrador se conserva al cambiar entre Preparar mi plan y Mis planes durante la sesión. Guardar o pulsar Preparar otro plan inicia un borrador nuevo. No se persiste el borrador al recargar la página.
+
+Las compras se redondean a unidades de 1 kg, 1 L o 1 unidad. Los ingresos suponen vender todos los menús ingresados. El margen descuenta ingredientes; no personal, alquiler ni otros gastos. Guardar no descuenta inventario. Se permite un plan por fecha; aún no se edita ni reemplaza desde la interfaz.
 
 ## Compatibilidad y pendientes
 
-Las pantallas anteriores de Planificar, Recetas, Insumos, Registro diario, Historial y Reportes se conservan como trabajo previo. Parte de ellas usa localStorage y datos de demostración. El cálculo anterior por plato está advertido y no representa el precio único del menú. Las nuevas recetas de PostgreSQL y las ediciones del recetario legado aún no se sincronizan. Historial y reportes legados aún no muestran los planes relacionales.
+La navegación de las pantallas anteriores fue retirada para evitar dos recorridos con datos distintos. El componente anterior se conserva en frontend/src/legacy/LegacyApp.jsx y sus datos locales no se borran. No se carga en la aplicación principal. Los catálogos del navegador y PostgreSQL todavía no se sincronizan.
 
-Prioridades siguientes: recuperación automática de fuentes estatales, privadas y ONG; mantenimiento relacional de recetas e inventario; registro de ventas por menú; adaptación de historial y reportes. Las tablas de fuentes ya existen, pero los conectores no están implementados. JasperReports no está integrado.
+Prioridades siguientes: conectores automáticos de fuentes estatales, privadas y ONG; mantenimiento relacional de recetas e inventario; registro de ventas por menú y pronóstico histórico. Las tablas de fuentes ya existen, pero los conectores no están implementados. JasperReports no está integrado.
 
 Alcance local: un negocio, sin autenticación ni separación de usuarios. Cada compañero usa su propia base local; PostgreSQL de Windows es suficiente y no se requiere Docker.
 

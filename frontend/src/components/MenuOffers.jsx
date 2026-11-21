@@ -1,144 +1,110 @@
 import React, { useEffect, useState } from "react";
-import { apiBase } from "../usePlanning.js";
-export function MenuOffers() {
-  const [recipes, setRecipes] = useState([]);
-  const [menus, setMenus] = useState([]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  async function read(path) {
-    const response = await fetch(`${apiBase}/${path}`);
-    if (!response.ok) throw new Error("No se pudo consultar PostgreSQL.");
-    return response.json();
-  }
-  async function reload() {
-    setLoading(true);
-    setMessage("");
-    try {
-      const [r, m] = await Promise.all([read("recipes"), read("menus")]);
-      setRecipes(r);
-      setMenus(m);
-    } catch (error) {
-      setMessage(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }
+import { api } from "../services/api.js";
+export function MenuOffers({ onCreated = () => {}, onCancel }) {
+  const [recipes, setRecipes] = useState([]),
+    [error, setError] = useState(""),
+    [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false);
   useEffect(() => {
-    reload();
+    const controller = new AbortController();
+    api("recipes", { signal: controller.signal })
+      .then(setRecipes)
+      .catch((e) => {
+        if (e.name !== "AbortError") setError(e.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
   }, []);
   async function save(event) {
     event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    setSaving(true);
-    setMessage("");
+    const form = new FormData(event.currentTarget);
+    setBusy(true);
+    setError("");
     try {
-      const response = await fetch(`${apiBase}/menus`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nombre: values.get("nombre"),
-          precio_menu: values.get("precio"),
+      const menu = await api("menus", {
+        body: {
+          nombre: form.get("nombre"),
+          precio_menu: form.get("precio"),
           recetas: ["caldo", "segundo", "refresco"].map((c) =>
-            Number(values.get(c)),
+            Number(form.get(c)),
           ),
-        }),
+        },
       });
-      if (!response.ok)
-        throw new Error(
-          "No se pudo guardar. Revisa el precio y los tres componentes.",
-        );
-      await reload();
-      form.reset();
-      setMessage("Menú guardado en PostgreSQL con un precio único.");
-    } catch (error) {
-      setMessage(error.message);
+      onCreated(menu);
+    } catch (e) {
+      setError(e.message);
     } finally {
-      setSaving(false);
+      setBusy(false);
     }
   }
   return (
-    <>
-      <section className="panel">
-        <h2>Precio del menú completo</h2>
-        <p>
-          Configura una combinación de caldo, segundo y refresco. El precio
-          corresponde a un menú completo.
+    <section className="offer-editor" aria-labelledby="new-menu-title">
+      <h3 id="new-menu-title">Arma una combinación nueva</h3>
+      <p>El precio incluye el caldo, el segundo y el refresco.</p>
+      {error && (
+        <p className="flow-error" role="alert">
+          {error}
         </p>
-        {message && <p role="status">{message}</p>}
-        {loading ? (
-          <p>Cargando desde PostgreSQL…</p>
-        ) : (
-          <form className="form-grid" onSubmit={save}>
-            <label>
-              Nombre del menú
-              <input name="nombre" required maxLength={150} />
-            </label>
-            <label>
-              Precio único (S/)
-              <input
-                name="precio"
-                type="number"
-                min="0.01"
-                step="0.01"
-                required
-              />
-            </label>
-            {["caldo", "segundo", "refresco"].map((category) => (
-              <label key={category}>
-                {category[0].toUpperCase() + category.slice(1)}
-                <select name={category} required defaultValue="">
-                  <option value="" disabled>
-                    Seleccionar
-                  </option>
-                  {recipes
-                    .filter((r) => r.categoria === category)
-                    .map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nombre}
-                      </option>
-                    ))}
-                </select>
+      )}
+      {loading ? (
+        <p role="status">Cargando recetas…</p>
+      ) : (
+        <form onSubmit={save}>
+          <fieldset disabled={busy || !recipes.length}>
+            <div className="form-grid">
+              <label>
+                Nombre
+                <input
+                  name="nombre"
+                  placeholder="Ej. Menú de la casa"
+                  maxLength={150}
+                  required
+                />
               </label>
-            ))}
-            <div className="form-submit">
-              <button className="primary" disabled={saving || !recipes.length}>
-                {saving ? "Guardando…" : "Guardar menú completo"}
+              <label>
+                Precio del menú completo (S/)
+                <input
+                  name="precio"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="Ej. 13.00"
+                  required
+                />
+              </label>
+              {["caldo", "segundo", "refresco"].map((c) => (
+                <label key={c}>
+                  {c[0].toUpperCase() + c.slice(1)}
+                  <select name={c} defaultValue="" required>
+                    <option value="" disabled>
+                      Seleccionar {c}
+                    </option>
+                    {recipes
+                      .filter((r) => r.categoria === c)
+                      .map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nombre}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              ))}
+            </div>
+            <div className="flow-actions">
+              {onCancel && (
+                <button type="button" className="secondary" onClick={onCancel}>
+                  Cancelar
+                </button>
+              )}
+              <button className="primary">
+                {busy ? "Guardando…" : "Guardar y usar este menú"}
               </button>
             </div>
-          </form>
-        )}
-        <button
-          className="secondary"
-          onClick={reload}
-          disabled={loading || saving}
-        >
-          Actualizar desde la base de datos
-        </button>
-      </section>
-      <section className="panel">
-        <h2>Menús guardados</h2>
-        {!menus.length && <p>Aún no hay menús registrados.</p>}
-        {menus.map((menu) => (
-          <article key={menu.id}>
-            <h3>
-              {menu.nombre} ·{" "}
-              {new Intl.NumberFormat("es-PE", {
-                style: "currency",
-                currency: "PEN",
-              }).format(menu.precio_menu)}
-            </h3>
-            <ul>
-              {menu.componentes.map((c) => (
-                <li key={c.id}>
-                  {c.categoria}: {c.nombre}
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </section>
-    </>
+          </fieldset>
+        </form>
+      )}
+    </section>
   );
 }

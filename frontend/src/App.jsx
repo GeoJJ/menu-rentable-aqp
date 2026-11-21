@@ -1,528 +1,149 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
-import { ingredients, recipes, products, scenarioOptions, calculate } from './data/demo/model.js';
-import { soupRecipes, extraIngredients, extraProducts, weekdays, weekdayOf, demoHistory } from './data/demo/weekly.js';
-import { History } from './components/History.jsx';
-import { mainRecipes, mainIngredients, mainProducts } from './data/demo/main-dishes.js';
-import { drinkRecipes, drinkIngredients, drinkProducts } from './data/demo/drinks.js';
-import { DayMenu, MenuActions, dishCategory, categoryLabels } from './components/DayMenu.jsx';
-import { preparations } from './data/demo/preparations.js';
-import { formatRecipeAmount, picanteriaReference, recipeReferences, recipeSteps } from './data/demo/recipe-details.js';
-import './styles/style.css';
-import { CompleteMenuPlanner } from './components/CompleteMenuPlanner.jsx';
-import { MenuOffers } from './components/MenuOffers.jsx';
-import { apiBase, usePlanning } from './usePlanning.js';
-import './styles/theme.css';
-import { HomeOverview } from './components/HomeOverview.jsx';
-
-
-
-const normalizeName = name => name.toLocaleLowerCase('es-PE').normalize('NFD').replace(/\p{M}/gu, '');
-const recipeGroups = {
-  soup: 'Caldos', starter: 'Entradas', main: 'Segundos',
-  picanteria: 'Picantería', seafood: 'Pescados y mariscos', drink: 'Refrescos',
-};
-const recipeGroup = recipe => recipe.recipeGroup ?? (
-  recipe.category === 'main' && recipe.style === 'Picantería' ? 'picanteria' :
-  recipe.category === 'main' && recipe.items.pescado > 0 ? 'seafood' : dishCategory(recipe)
-);
-const money = value => new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value);
-const number = value => new Intl.NumberFormat('es-PE', { maximumFractionDigits: 3 }).format(value);
-const today = new Intl.DateTimeFormat('sv-SE', { timeZone: 'America/Lima' }).format(new Date());
-const navigation = [['Planificar menú completo', '▦'], ['Menús completos', '◈'], ['Planificar', '▦'], ['Recetas', '▤'], ['Insumos y precios', '⌕'], ['Registro diario', '✓'], ['Historial', '↺'], ['Reportes', '▥']];
-const defaultMenu = [...recipes.map(recipe => ({ ...recipe, category: 'main', style: 'Menú diario' })), ...mainRecipes, ...soupRecipes, ...drinkRecipes];
-const defaultInventory = [...ingredients, ...extraIngredients, ...mainIngredients, ...drinkIngredients];
-const defaultCatalog = [...products, ...extraProducts, ...mainProducts, ...drinkProducts];
-const examples = demoHistory('2026-11-12', recipes, defaultInventory, defaultCatalog, calculate, scenarioOptions[1]);
-const mergeBy = (defaults, saved, key) => [...new Map([...defaults, ...saved].map(item => [key(item), item])).values()];
-const links = [
-  ['MIDAGRI', 'Referencia de pollo en San Camilo', 'https://siea.midagri.gob.pe/portal/phocadownload/datos_estadisticas/diarias/aves/2025/08/sisap-aves-04ago25.pdf'],
-  ['PlazaVea', 'Catálogo para evaluar cobertura en Arequipa', 'https://www.plazavea.com.pe/lbc/arroz-superior-formato-5kg'],
-  ['ADRA Perú', 'Resultados del Banco de Alimentos en Arequipa', 'https://adra.org.pe/adra-peru-rescata-mas-de-900-toneladas-de-alimentos-en-2025/'],
-];
-
-function useStored(key, initial) {
-  const [value, setValue] = useState(() => {
-    try { return JSON.parse(localStorage.getItem(key)) ?? initial; } catch { return initial; }
-  });
-  return [value, next => { setValue(next); localStorage.setItem(key, JSON.stringify(next)); }];
-}
-
-function download(filename, rows) {
-  const csv = rows.map(row => row.map(cell => '"' + String(cell ?? '').replaceAll('"', '""') + '"').join(',')).join('\r\n');
-  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-function Panel({ title, children, action }) {
-  return <section className="panel"><div className="panel-head"><h2>{title}</h2>{action}</div>{children}</section>;
-}
-
+import React, { useEffect, useState } from "react";
+import { createRoot } from "react-dom/client";
+import { CompleteMenuPlanner } from "./components/CompleteMenuPlanner.jsx";
+import { SavedMenuPlans } from "./components/SavedMenuPlans.jsx";
+import { Kitchen } from "./components/Kitchen.jsx";
+import { api } from "./services/api.js";
+import "./styles/style.css";
+import "./styles/theme.css";
+import "./styles/journey.css";
 function App() {
-  const [page, setPage] = useState('Planificar menú completo');
-  const [apiStatus, setApiStatus] = useState('checking');
-
+  const [revision, setRevision] = useState(0);
+  const [page, setPage] = useState("plan"),
+    [version, setVersion] = useState(0),
+    [justSaved, setJustSaved] = useState(null),
+    [status, setStatus] = useState("checking");
   useEffect(() => {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    fetch(apiBase + '/health', { signal: controller.signal })
-      .then(response => {
-        if (!response.ok) throw new Error('El servidor no respondió.');
-        return response.json();
-      })
-      .then(result => setApiStatus(result.status === 'ok' ? 'connected' : 'offline'))
-      .catch(() => setApiStatus('offline'))
-      .finally(() => clearTimeout(timeout));
-    return () => { clearTimeout(timeout); controller.abort(); };
-  }, []);
-  const [recipeFilter, setRecipeFilter] = useState('all');
-  const [recipeSearch, setRecipeSearch] = useState('');
-  const [savedMenu, setMenu] = useStored('mr-recipes', []);
-  const [savedInventory, setInventory] = useStored('mr-inventory', []);
-  const ingredientDialog = useRef(null);
-  const [ingredientError, setIngredientError] = useState('');
-  const [savedCatalog, setCatalog] = useStored('mr-catalog', []);
-  const [savedEntries, setEntries] = useStored('mr-records', []);
-  const [savedPlans, setPlans] = useStored('mr-plans', []);
-  const [dailyMenus, setDailyMenus] = useStored('mr-daily-menus', {});
-  const [serverPlans, setServerPlans] = useState([]);
-  const [planLoadError, setPlanLoadError] = useState('');
-  useEffect(() => {
-    const controller = new AbortController();
-    fetch(`${apiBase}/plans`, { signal: controller.signal }).then(response => {
-      if (!response.ok) throw new Error();
-      return response.json();
-    }).then(setServerPlans).catch(error => {
-      if (error.name !== 'AbortError') setPlanLoadError('No se pudieron recuperar los planes de PostgreSQL.');
-    });
+    api("health", { signal: controller.signal })
+      .then(() => setStatus("connected"))
+      .catch((e) => {
+        if (e.name !== "AbortError") setStatus("offline");
+      });
     return () => controller.abort();
   }, []);
-
-  const menu = mergeBy(defaultMenu, savedMenu, item => item.id).map(recipe => {
-    const original = preparations[recipe.id] ?? drinkRecipes.find(drink => drink.id === recipe.id)?.preparation;
-    return recipe.preparation === original ? { ...recipe, preparation: '' } : recipe;
-  });
-  const recipeQuery = normalizeName(recipeSearch.trim());
-  const filteredRecipes = menu.filter(recipe =>
-    (recipeFilter === 'all' || recipeGroup(recipe) === recipeFilter) &&
-    normalizeName(recipe.name).includes(recipeQuery)
-  );
-  const inventory = mergeBy(defaultInventory, savedInventory, item => item.id);
-  const catalog = mergeBy(defaultCatalog, savedCatalog, item => item.id);
-  const entries = mergeBy(examples.entries, savedEntries, row => row.date + ':' + row.recipeId);
-  const plans = mergeBy(mergeBy(examples.plans, serverPlans, row => row.date), savedPlans, row => row.date);
-  const [date, setDate] = useState(today);
-  const day = weekdayOf(date);
-  const dayPlan = plans.find(plan => plan.date === date);
-  const dailyMenu = dailyMenus[date];
-  const budget = dailyMenu?.budget ?? dayPlan?.budget ?? 160;
-  const selectedIds = dailyMenu?.ids ?? dayPlan?.plates.map(plate => plate.recipe.id) ?? [soupRecipes[day].id];
-  const [scenario, setScenario] = useState('');
-  const [choices, setChoices] = useState({});
-  const [overrides, setOverrides] = useState({});
-  const [generated, setGenerated] = useState(false);
-  const [filter, setFilter] = useState('');
-  const [notice, setNotice] = useState('');
-  const [editing, setEditing] = useState(null);
-  const [ingredientSearch, setIngredientSearch] = useState('');
-  const ingredientQuery = normalizeName(ingredientSearch.trim());
-  const matchingIngredients = inventory.filter(item => normalizeName(item.name).includes(ingredientQuery));
-  const recipeNameInput = useRef(null);
-  const recipeOrigin = useRef(null);
-  const isEditingRecipe = editing !== null;
-  const editingTitle = editing?.id ? 'Editar receta · ' + recipeOrigin.current?.name : 'Nueva receta';
-
-  useEffect(() => {
-    if (isEditingRecipe) {
-      window.scrollTo(0, 0);
-      recipeNameInput.current?.focus({ preventScroll: true });
-    } else if (recipeOrigin.current) {
-      const { scrollY, buttonId } = recipeOrigin.current;
-      window.scrollTo(0, scrollY);
-      document.getElementById(buttonId)?.focus({ preventScroll: true });
-      recipeOrigin.current = null;
-    }
-  }, [isEditingRecipe]);
-  const [reportDate, setReportDate] = useState(today);
-  const selected = selectedIds.map(id => menu.find(recipe => recipe.id === id)).filter(Boolean);
-  const setDayMenu = (ids, amount = budget) => setDailyMenus({ ...dailyMenus, [date]: { ids, budget: amount } });
-  const setPlanDate = next => {
-    if (!next || next === date) return;
-    setDate(next);
-    setScenario('');
-    setChoices({});
-    setOverrides({});
-    setNotice('');
-  };
-  const changeDishes = ids => {
-    setDayMenu(ids);
-    setOverrides({});
-    setScenario('');
-    setNotice('');
-  };
-  function toggleSecond(id) {
-    changeDishes(selectedIds.includes(id) ? selectedIds.filter(item => item !== id) : [...selectedIds, id]);
-  }
-  function changeDish(category, id) {
-    changeDishes([
-      ...selected.filter(recipe => dishCategory(recipe) !== category).map(recipe => recipe.id),
-      ...(id ? [id] : []),
-    ]);
-  }
-  function generateMenu() {
-    setDayMenu(selectedIds);
-    setGenerated(true);
-  }
-  const planning = usePlanning({ date, selected, inventory, catalog, choices, entries, budget: Number(budget), scenario, overrides });
-  const estimates = planning.data?.estimates ?? {};
-  const scenarios = planning.data?.scenarios ?? [];
-  const recommendation = planning.data?.recommendation;
-  const base = planning.data?.base ?? {};
-  const active = planning.data?.active ?? { plates: [], supplies: [], feasible: false, quantity: 0, purchase: 0, consumed: 0, margin: 0 };
-  const currentPlan = plans.find(plan => plan.date === reportDate);
-  const weekStart = new Date(reportDate + 'T12:00:00Z');
-  weekStart.setUTCDate(weekStart.getUTCDate() - (weekStart.getUTCDay() + 6) % 7);
-  const week = weekStart.toISOString().slice(0, 10);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
-  const end = weekEnd.toISOString().slice(0, 10);
-  const weekly = entries.filter(row => row.date >= week && row.date <= end).sort((a, b) => a.date.localeCompare(b.date));
-  const weeklyPlans = plans.filter(plan => plan.date >= week && plan.date <= end)
-    .flatMap(plan => plan.plates.map(plate => ({ date: plan.date, recipeId: plate.recipe.id })));
-  const weeklyKeys = [...new Map([...weeklyPlans, ...weekly].map(row => [row.date + row.recipeId, row])).values()]
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const weeklyRows = weeklyKeys.map(row => {
-    const actual = weekly.find(entry => entry.date === row.date && entry.recipeId === row.recipeId);
-    const plate = plans.find(plan => plan.date === row.date)?.plates.find(item => item.recipe.id === row.recipeId);
-    return [row.date, actual?.name ?? plate?.recipe.name, plate?.quantity ?? '', actual?.made ?? '', actual?.sold ?? '', actual?.left ?? '', actual ? (actual.soldOut ? 'Sí' : 'No') : ''];
-  });
-  const catalogResults = catalog.filter(product => (product.name + ' ' + product.ingredient).toLowerCase().includes(filter.toLowerCase().trim()));
-  function openRecipeEditor(recipe, buttonId) {
-    const basePreparation = recipeSteps(recipe, inventory, number).join('\n');
-    recipeOrigin.current = { scrollY: window.scrollY, buttonId, name: recipe.name, basePreparation };
-    setIngredientSearch('');
-    setEditing({ ...recipe, preparation: recipe.preparation?.trim() ? recipe.preparation : basePreparation });
-    setNotice('');
-  }
-
-  const navigate = next => {
-    recipeOrigin.current = null;
-    setPage(next);
-    setNotice('');
-    setEditing(null);
-    setGenerated(false);
+  function newPlan() {
+    setJustSaved(null);
+    setVersion((v) => v + 1);
+    setPage("plan");
     window.scrollTo(0, 0);
-  };
-  function openIngredientDialog() {
-    ingredientDialog.current.querySelector('form').reset();
-    setIngredientError('');
-    ingredientDialog.current.showModal();
   }
-
-  function saveIngredient(event) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const name = String(data.get('name')).trim();
-    if (!name) {
-      setIngredientError('Escribe el nombre del ingrediente.');
-      return;
-    }
-    if (inventory.some(item => normalizeName(item.name.trim()) === normalizeName(name))) {
-      setIngredientError('Ya existe un ingrediente con ese nombre.');
-      return;
-    }
-    const ingredient = {
-      id: crypto.randomUUID(),
-      name,
-      unit: data.get('unit'),
-      stock: Number(data.get('stock')),
-      cost: Number(data.get('cost')),
-    };
-    setInventory([...savedInventory, ingredient]);
-    ingredientDialog.current.close();
-    setNotice('Ingrediente agregado al inventario: ' + name + '.');
+  function saved(plan) {
+    setJustSaved(plan);
+    setVersion((v) => v + 1);
+    setPage("saved");
+    window.scrollTo(0, 0);
   }
-
-  async function savePlan() {
-    if (!planning.data) return;
-    try {
-      const response = await fetch(`${apiBase}/plans`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date, selected, inventory, catalog, choices, entries, budget: Number(budget), scenario, overrides }) });
-      if (!response.ok) throw new Error('No se pudo guardar en PostgreSQL.');
-      const document = await response.json();
-      setPlans([...savedPlans.filter(plan => plan.date !== date), document]);
-      setReportDate(date);
-      setNotice('Plan guardado en PostgreSQL. Disponible en Reportes.');
-    } catch (error) { setNotice(error.message); }
-  }
-  function saveRecipe(event) {
-    event.preventDefault();
-    if (!Object.values(editing.items).some(quantity => quantity > 0)) {
-      setNotice('Agrega al menos un ingrediente con cantidad mayor que cero.');
-      return;
-    }
-    const preparation = editing.preparation === recipeOrigin.current?.basePreparation ? '' : editing.preparation;
-    const recipe = { ...editing, preparation, name: editing.name.trim(), yield: Number(editing.yield), price: Number(editing.price), id: editing.id || crypto.randomUUID() };
-    setMenu(editing.id ? menu.map(item => item.id === recipe.id ? recipe : item) : [...menu, recipe]);
-    if (page === 'Recetas') {
-      if (recipeFilter !== 'all') setRecipeFilter(recipeGroup(recipe));
-      if (!normalizeName(recipe.name).includes(recipeQuery)) setRecipeSearch('');
-    }
-    setEditing(null);
-    setNotice('Receta guardada.');
-  }
-  function saveEntry(event, recipe) {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-    const made = Number(form.get('made'));
-    const sold = Number(form.get('sold'));
-    if (sold > made) { setNotice('Las ventas deben ser iguales o menores que las porciones preparadas.'); return; }
-    const row = { date, recipeId: recipe.id, name: recipe.name, made, sold, left: made - sold, soldOut: made > 0 && sold === made };
-    setEntries([...savedEntries.filter(item => item.date !== date || item.recipeId !== recipe.id), row]);
-    setNotice('Registro guardado para ' + recipe.name + '.');
-  }
-
-  return <div className="shell">
-    <aside className="sidebar">
-      <div className="brand"><span className="brand-icon" aria-hidden="true">◈</span><div>MenúRentable<small>AREQUIPA</small></div></div>
-      <nav aria-label="Navegación principal">{navigation.map(([label, icon]) =>
-        <button key={label} aria-current={page === label || (label === 'Planificar' && ['Detalle', 'Recetas del menú'].includes(page)) ? 'page' : undefined} className={page === label || (label === 'Planificar' && ['Detalle', 'Recetas del menú'].includes(page)) ? 'nav active' : 'nav'} onClick={() => navigate(label)}><span aria-hidden="true">{icon}</span>{label}</button>
-      )}</nav>
-      <div className="sidebar-note"><i /> Datos de demostración</div>
-    </aside>
-    <main>
-      <header className="top"><span>MenúRentable AQP <b> / </b> {isEditingRecipe ? editingTitle : page}</span><span className="location">Arequipa, Perú</span></header>
-      <div className="content">
-        {isEditingRecipe ? <div className="page-heading"><h1>{editingTitle}</h1></div> : <div className="page-heading"><div><h1>{{ 'Planificar menú completo': 'Planificar menú completo', 'Menús completos': 'Menús completos', Planificar: 'Arma tu menú', Detalle: 'Detalle del menú', 'Recetas del menú': 'Recetas del menú', Recetas: 'Recetas', 'Insumos y precios': 'Insumos y precios', 'Registro diario': 'Registro diario', Historial: 'Historial', Reportes: 'Reportes' }[page]}</h1>
-          <p>{{ 'Planificar menú completo': 'Calcula porciones y compras con el precio único del menú.', 'Menús completos': 'Guarda el menú y su precio único.', Planificar: 'Elige qué vas a servir.', Detalle: 'Compara las porciones, los costos y las compras para la fecha elegida.', 'Recetas del menú': 'Consulta las cantidades y la preparación de los platos elegidos.', Recetas: 'Configura el rendimiento y los ingredientes de cada plato.', 'Insumos y precios': 'Consulta el catálogo de prueba y mantén tu inventario al día.', 'Registro diario': 'Guarda los resultados de producción y venta de cada plato.', Historial: 'Revisa los menús, las porciones, las compras y los resultados de cada fecha.', Reportes: 'Consulta el plan guardado y revisa el resultado de la semana.' }[page]}</p></div>
-          {page === 'Insumos y precios' && <button className="primary" onClick={openIngredientDialog}>+ Nuevo ingrediente</button>}
-          {page === 'Recetas' && <button id="new-recipe" className="primary" onClick={() => openRecipeEditor({ name: '', category: 'main', yield: 10, price: 0, items: {} }, 'new-recipe')}>+ Nueva receta</button>}
-        </div>}
-        {planLoadError && <p role="status">{planLoadError}</p>}
-        {notice && <div className="notice" role="status">{notice}</div>}
-
-        {page === 'Planificar menú completo' && <CompleteMenuPlanner />}
-        {page === 'Menús completos' && <MenuOffers />}
-        {page === 'Planificar' && <>
-          <HomeOverview recipes={menu} inventory={inventory} selected={selected} entries={entries}
-            date={date} apiStatus={apiStatus} navigate={navigate} />
-          <DayMenu date={date} menu={menu} selected={selected} onDateChange={setPlanDate}
-            onDishChange={changeDish} onSecondToggle={toggleSecond} onGenerate={generateMenu} />
-          {generated && <MenuActions date={date} dishes={selected} onClose={() => setGenerated(false)}
-            onDetails={() => navigate('Detalle')} onRecipes={() => navigate('Recetas del menú')} />}
-        </>}
-
-        {page === 'Detalle' && <>
-          <p className="notice" role="status">Los menús completos ya se guardan con precio único en su nueva sección. Este planificador todavía usa el cálculo anterior por plato; sus ingresos y margen están pendientes de adaptación.</p>
-          <div className="back-row"><button className="secondary" onClick={() => navigate('Planificar')}>← Volver al menú</button><button className="secondary" onClick={() => navigate('Recetas del menú')}>Ver recetas elegidas</button></div>
-          <Panel title={weekdays[day] + ' · ' + date}>
-            <div className="detail-controls">
-              <ul className="ingredient-list">{selected.map(recipe => <li key={recipe.id}><span>{categoryLabels[dishCategory(recipe)]}</span><b>{recipe.name}</b></li>)}</ul>
-              <label>Presupuesto de compras (S/)<input type="number" min="0" step="0.01" value={budget} onChange={event => setDayMenu(selectedIds, event.target.value === '' ? '' : Math.max(0, Number(event.target.value)))} /></label>
-            </div>
-          </Panel>
-          {selected.length && planning.data ? <>
-            <div className="section-heading"><h2>Escenarios de producción</h2><span>Estimaciones según las ventas registradas</span></div>
-            <div className="scenarios">{scenarios.map(item => <button key={item.name} className={'scenario ' + (base.name === item.name ? 'picked' : '')} aria-pressed={base.name === item.name}
-              onClick={() => { setScenario(item.name); setOverrides({}); setNotice(''); }}>
-              <div className="scenario-top"><strong>{item.name}</strong>{recommendation?.name === item.name && <span className="badge">Recomendado</span>}</div>
-              <div className="quantity">{item.quantity} <small>porciones</small></div>
-              <div className="metric"><span>Ventas estimadas</span><b>{item.sold}</b></div>
-              <div className="metric"><span>Sobrantes estimados</span><b>{item.leftovers}</b></div>
-              <div className="metric"><span>Compra estimada</span><b>{money(item.purchase)}</b></div>
-              <div className="metric last"><span>Margen estimado</span><b>{money(item.margin)}</b></div>
-              {!item.feasible && <span className="warn">{item.pending ? 'Pendiente de cotización' : 'Supera el presupuesto'}</span>}
-            </button>)}</div>
-            <Panel title={'Detalle del escenario · ' + base.name} action={<button className="primary" disabled={!active.feasible || !active.quantity} onClick={savePlan}>Guardar plan</button>}>
-              <div className="summary"><span>Compra <b>{money(active.purchase)}</b></span><span>Ingredientes utilizados <b>{money(active.consumed)}</b></span><span>Margen estimado <b>{money(active.margin)}</b></span></div>
-              {!active.feasible && <p className="warn">{active.pending ? 'Hay ingredientes pendientes de cotización.' : 'La compra supera el presupuesto disponible.'}</p>}
-              <div className="plate-grid">{active.plates.map(({ recipe, quantity, sold, leftovers }) => {
-                const data = estimates[recipe.id];
-                return <label className="plate" key={recipe.id}>{recipe.name}
-                  <input type="number" min="0" step="1" value={quantity} onChange={event => setOverrides({ ...overrides, [recipe.id]: Math.max(0, Math.trunc(Number(event.target.value))) })} />
-                  <small>{sold} ventas estimadas · {leftovers} sobrantes</small>
-                  <small>{data.samples ? data.samples + (data.demo ? ' días de ejemplo · ' : ' días comparables · ') + data.soldOut + ' con agotamiento' : 'Estimación inicial de demostración'}</small>
-                </label>;
-              })}</div>
-              <div className="table-wrap"><table><thead><tr><th>Ingrediente</th><th>Necesario</th><th>En stock</th><th>Faltante</th><th>Presentación de compra</th><th>Compra</th><th>Stock final</th></tr></thead><tbody>
-                {active.supplies.map(item => <tr key={item.id}><th>{item.name}</th><td>{number(item.required)} {item.unit}</td><td>{number(item.stock)} {item.unit}</td>
-                  <td>{number(item.missing)} {item.unit}</td><td>{item.missing > 1e-8 ? <><select aria-label={'Producto para ' + item.name} value={item.product?.id ?? ''} onChange={event => setChoices({ ...choices, [item.id]: event.target.value })}>
-                    {catalog.filter(product => product.ingredient === item.id).map(product => <option key={product.id} value={product.id}>{product.name} · {money(product.price)}</option>)}
-                    {!item.product && <option value="">Sin cotización</option>}</select><small className="table-note">{item.packages} envase(s) · {item.product?.source ?? 'Catálogo de demostración'}</small></> : '—'}</td>
-                  <td>{money(item.purchase)}</td><td>{number(item.remaining)} {item.unit}</td></tr>)}
-              </tbody></table></div>
-            </Panel>
-          </> : <Panel title="Escenarios de producción"><p>{!selected.length ? 'Selecciona al menos un plato para calcular el plan.' : planning.error || 'Calculando el plan en Python…'}</p></Panel>}
-        </>}
-
-        {(page === 'Recetas' || page === 'Recetas del menú') && <>
-          {!isEditingRecipe && page === 'Recetas del menú' && <div className="back-row"><button className="secondary" onClick={() => navigate('Planificar')}>← Volver al menú</button><button className="secondary" onClick={() => navigate('Detalle')}>Ver detalles del menú</button></div>}
-          {editing && <section className="panel" aria-label="Formulario de receta">
-            <form onSubmit={saveRecipe}>
-              <div className="form-grid"><label>Nombre<input ref={recipeNameInput} required value={editing.name} onChange={event => setEditing({ ...editing, name: event.target.value })} /></label>
-              <label>Grupo en Recetas<select value={editing.recipeGroup ?? ''} onChange={event => setEditing({ ...editing, recipeGroup: event.target.value || undefined })}>
-                <option value="">Automático ({recipeGroups[recipeGroup({ ...editing, recipeGroup: undefined })]})</option>
-                {Object.entries(recipeGroups).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
-              </select></label>
-              <label>Tipo de plato<select value={editing.category ?? 'main'} onChange={event => setEditing({ ...editing, category: event.target.value })}><option value="main">Segundo</option><option value="soup">Caldo</option><option value="drink">Refresco</option></select></label>
-              <label>{editing.category === 'drink' ? 'Rendimiento (vasos)' : 'Rendimiento (porciones)'}<input required type="number" min="1" step="1" value={editing.yield} onChange={event => setEditing({ ...editing, yield: event.target.value })} /></label>
-              <label>Precio de venta por porción (S/)<input required type="number" min="0" step="0.01" value={editing.price} onChange={event => setEditing({ ...editing, price: event.target.value })} /></label></div>
-              <label className="preparation-input">Preparación personalizada<textarea rows="4" placeholder="Déjalo vacío para mostrar los pasos de la receta base, si están disponibles." value={editing.preparation ?? ''} onChange={event => setEditing({ ...editing, preparation: event.target.value })} /></label>
-              <h3>Ingredientes por lote</h3>
-              <label>Buscar ingrediente<input type="search" placeholder="Ej. garbanzo" value={ingredientSearch} onChange={event => setIngredientSearch(event.target.value)} /></label>
-              {matchingIngredients.length === 0 && <p role="status">No se encontraron ingredientes con ese nombre.</p>}
-              <div className="form-grid">{matchingIngredients.map(item => <label key={item.id}>{item.name} ({item.unit})<input type="number" min="0" step="0.001" value={editing.items[item.id] ?? ''} onChange={event => setEditing({ ...editing, items: { ...editing.items, [item.id]: Number(event.target.value) } })} /></label>)}</div>
-              <div className="actions"><button className="primary">{editing.id ? 'Guardar cambios' : 'Guardar receta'}</button><button className="secondary" type="button" onClick={() => { setNotice(''); setEditing(null); }}>Cancelar</button></div>
-            </form>
-          </section>}
-          {!isEditingRecipe && page === 'Recetas' && <>
-            <div className="back-row">
-              <label>Buscar receta<input type="search" placeholder="Ej. caldo blanco" value={recipeSearch}
-                onChange={event => setRecipeSearch(event.target.value)} /></label>
-            </div>
-            <div className="back-row" role="group" aria-label="Filtrar recetas por grupo">
-              {Object.entries({ all: 'Todas', ...recipeGroups }).map(([id, label]) =>
-                <button key={id} type="button" className={recipeFilter === id ? 'primary' : 'secondary'}
-                  aria-pressed={recipeFilter === id} onClick={() => setRecipeFilter(id)}>{label}</button>
-              )}
-            </div>
-            {filteredRecipes.length === 0 && <p role="status">
-              {recipeQuery ? 'No se encontraron recetas con ese nombre en el grupo seleccionado.' :
-                'Aún no hay recetas en ' + (recipeGroups[recipeFilter] ?? 'el recetario') + '.'}
-            </p>}
-          </>}
-          {!isEditingRecipe && Object.entries(recipeGroups).map(([id, label]) => {
-            const group = (page === 'Recetas del menú' ? selected : filteredRecipes).filter(recipe => recipeGroup(recipe) === id);
-            if (!group.length) return null;
-            return <section key={id} className="panel" aria-label={label}>
-              <div className="panel-head"><h2>{label}</h2></div>
-              <div className="recipe-grid">{group.map(recipe => {
-            const cost = inventory.reduce((sum, item) => sum + (recipe.items[item.id] || 0) * item.cost, 0);
-            const steps = recipeSteps(recipe, inventory, number);
-            const reference = recipeReferences[recipe.id] ?? (recipe.category === 'soup' || recipe.style === 'Picantería' ? picanteriaReference : null);
-            return <Panel key={recipe.id} title={recipe.name} action={<button id={'edit-recipe-' + recipe.id} className="secondary" onClick={event => openRecipeEditor(recipe, event.currentTarget.id)}>Editar</button>}>
-              <p>{categoryLabels[dishCategory(recipe)]} · {recipe.yield} {recipe.category === 'drink' ? 'vasos' : 'porciones'} · Venta {money(recipe.price)} por {recipe.category === 'drink' ? 'vaso' : 'porción'}</p>
-                            <h3>Ingredientes para el lote</h3>
-              <ul className="ingredient-list">{inventory.filter(item => recipe.items[item.id] > 0).map(item => <li key={item.id}><span>{item.name}</span><b>{formatRecipeAmount(recipe.items[item.id], item.unit, number)}</b></li>)}</ul>
-              {recipe.preparation?.trim() ? <><h3>Preparación personalizada</h3><p className="recipe-custom">{recipe.preparation}</p></> :
-                steps.length ? <><h3>Preparación paso a paso</h3><ol className="recipe-steps">{steps.map(step => <li key={step}>{step}</li>)}</ol></> :
-                <p>Agrega una preparación que corresponda a los ingredientes del lote.</p>}
-              {reference && <p className="recipe-reference"><a href={reference[1]} target="_blank" rel="noreferrer">{reference[0]} ↗</a></p>}
-              <div className="summary"><span>Costo del lote <b>{money(cost)}</b></span><span>Costo por porción <b>{money(cost / recipe.yield)}</b></span></div>
-            </Panel>;
-              })}</div>
-            </section>;
-          })}
-        </>}
-
-        {page === 'Insumos y precios' && <>
-          <dialog ref={ingredientDialog} className="menu-dialog" aria-labelledby="ingredient-dialog-title">
-            <form onSubmit={saveIngredient} onInput={() => setIngredientError('')}>
-              <h2 id="ingredient-dialog-title">Nuevo ingrediente</h2>
-              <div className="preparation-input">
-                <label>Nombre<input name="name" required maxLength="100" autoFocus /></label>
-                <label>Unidad<select name="unit"><option value="kg">Kilogramos (kg)</option><option value="L">Litros (L)</option></select></label>
-                <label>Stock inicial<input name="stock" type="number" required min="0" step="0.001" defaultValue="0" /></label>
-                <label>Costo por unidad (S/)<input name="cost" type="number" required min="0" step="0.01" /></label>
-              </div>
-              {ingredientError && <p role="alert">{ingredientError}</p>}
-              <div className="actions">
-                <button className="primary">Guardar ingrediente</button>
-                <button className="secondary" type="button" onClick={() => ingredientDialog.current.close()}>Cancelar</button>
-              </div>
-            </form>
-          </dialog>
-          <Panel title="Catálogo de productos">
-            <label>Buscar ingrediente o producto<input type="search" placeholder="Ej. arroz" value={filter} onChange={event => setFilter(event.target.value)} /></label>
-            <div className="table-wrap"><table><thead><tr><th>Producto</th><th>Precio por envase</th><th>Precio unitario</th><th>Procedencia</th></tr></thead><tbody>
-              {catalogResults.map(item => <tr key={item.id}><th>{item.name}</th><td>{money(item.price)}</td><td>{money(item.price / item.size)} / {inventory.find(ingredient => ingredient.id === item.ingredient)?.unit}</td><td>{item.source ?? 'Demostración'}</td></tr>)}
-            </tbody></table></div>{!catalogResults.length && <p>No se encontraron productos.</p>}
-            <h3>Agregar cotización local</h3>
-            <form className="form-grid" onSubmit={event => {
-              event.preventDefault();
-              const data = new FormData(event.currentTarget);
-              const ingredient = inventory.find(item => item.id === data.get('ingredient'));
-              const size = Number(data.get('size'));
-              const price = Number(data.get('price'));
-              setCatalog([...catalog, { id: crypto.randomUUID(), ingredient: ingredient.id, name: data.get('product'), size, price, source: data.get('source') + ' · ' + today }]);
-              event.currentTarget.reset();
-              setNotice('Cotización agregada al catálogo.');
-            }}>
-              <label>Ingrediente<select name="ingredient">{inventory.map(item => <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>)}</select></label>
-              <label>Producto<input name="product" required /></label><label>Contenido (kg o L)<input name="size" type="number" required min="0.001" step="0.001" /></label>
-              <label>Precio por envase (S/)<input name="price" type="number" required min="0.01" step="0.01" /></label><label>Proveedor o comercio<input name="source" required /></label>
-              <div className="form-submit"><button className="primary">Agregar cotización</button></div>
-            </form>
-          </Panel>
-          <Panel title="Inventario"><form key={inventory.map(item => item.stock + ':' + item.cost).join('|')} onSubmit={event => {
-            event.preventDefault();
-            const form = new FormData(event.currentTarget);
-            setInventory(inventory.map(item => ({ ...item, stock: Number(form.get(item.id)), cost: Number(form.get(item.id + '-cost')) })));
-            setNotice('Inventario guardado.');
-          }}>
-            <div className="table-wrap"><table><thead><tr><th>Ingrediente</th><th>Existencias</th><th>Costo del inventario</th></tr></thead><tbody>{inventory.map(item => <tr key={item.id}><th>{item.name}</th><td><input required type="number" min="0" step="0.001" name={item.id} defaultValue={item.stock} aria-label={'Existencias de ' + item.name + ' en ' + item.unit} /> {item.unit}</td><td><input required type="number" min="0" step="0.01" name={item.id + '-cost'} defaultValue={item.cost} aria-label={'Costo de ' + item.name} /> S/ por {item.unit}</td></tr>)}</tbody></table></div>
-            <button className="primary">Guardar inventario</button>
-          </form></Panel>
-          <Panel title="Fuentes externas">
-            <p>Integración automática pendiente. El catálogo de prueba y las cotizaciones locales permiten simular compras.</p>
-            <ul className="source-list">{links.map(([name, description, url]) => <li key={name}><b>{name}</b><span>{description}</span><a href={url} target="_blank" rel="noreferrer">Ver fuente ↗</a></li>)}</ul>
-          </Panel>
-        </>}
-
-        {page === 'Registro diario' && <>
-          <Panel title="Fecha de cierre"><label>Fecha<input type="date" value={date} onChange={event => { setPlanDate(event.target.value); }} /></label></Panel>
-          {!selected.length && <Panel title="Platos del día"><p>Selecciona los platos desde Planificar para registrar el cierre.</p></Panel>}
-          {menu.filter(recipe => selectedIds.includes(recipe.id) || entries.some(row => row.date === date && row.recipeId === recipe.id)).map(recipe => {
-            const row = entries.find(item => item.date === date && item.recipeId === recipe.id);
-            const planned = plans.find(plan => plan.date === date)?.plates.find(item => item.recipe.id === recipe.id)?.quantity;
-            return <Panel key={date + recipe.id} title={recipe.name}>
-              <p>Planificadas: {planned ?? 'Sin plan guardado'}</p>
-              <form className="form-grid" onSubmit={event => saveEntry(event, recipe)}>
-                <label>Preparadas<input required name="made" type="number" min="0" step="1" defaultValue={row?.made ?? planned ?? 0} /></label>
-                <label>Vendidas<input required name="sold" type="number" min="0" step="1" defaultValue={row?.sold ?? 0} /></label>
-                <div className="form-submit"><button className="primary">Guardar registro</button></div>
-              </form>
-              {row && <p>{row.left} porciones sobrantes · {row.soldOut ? 'Plato agotado' : 'Sin agotamiento registrado'}</p>}
-            </Panel>;
-          })}
-        </>}
-
-        {page === 'Historial' && <History plans={plans} entries={entries} dailyMenus={dailyMenus} menu={menu} today={today}
-          money={money} number={number} weekdays={weekdays} weekdayOf={weekdayOf}
-          openReport={next => { setReportDate(next); navigate('Reportes'); }}
-          resume={next => { setPlanDate(next); navigate('Planificar'); }} />}
-
-        {page === 'Reportes' && <>
-          <Panel title="Fecha del reporte"><label>Fecha<input type="date" value={reportDate} onChange={event => { if (event.target.value) setReportDate(event.target.value); }} /></label></Panel>
-          <Panel title="Plan diario de producción y compras" action={currentPlan && <button className="secondary" onClick={() => download('plan-' + reportDate + '.csv', [
-            ['Fecha', reportDate], ['Escenario', currentPlan.name], ['Presupuesto', currentPlan.budget], ['Desembolso', currentPlan.purchase], ['Margen estimado', currentPlan.margin], [],
-            ['Plato', 'Porciones', 'Ventas estimadas', 'Sobrantes estimados'], ...currentPlan.plates.map(plate => [plate.recipe.name, plate.quantity, plate.sold, plate.leftovers]), [],
-            ['Ingrediente', 'Unidad', 'Necesario', 'Faltante', 'Producto', 'Envases', 'Compra', 'Stock final', 'Procedencia'],
-            ...currentPlan.supplies.map(item => [item.name, item.unit, item.required, item.missing, item.packages ? item.product.name : '', item.packages, item.purchase, item.remaining, item.packages ? item.product.source ?? 'Demostración' : 'Inventario']),
-          ])}>Descargar CSV</button>}>
-            {currentPlan ? <>
-              {currentPlan.demo && <p className="demo-note">Plan de demostración</p>}
-              <div className="summary"><span>Porciones <b>{currentPlan.quantity}</b></span><span>Compra <b>{money(currentPlan.purchase)}</b></span><span>Margen estimado <b>{money(currentPlan.margin)}</b></span></div>
-              <ul className="ingredient-list">{currentPlan.plates.map(plate => <li key={plate.recipe.id}><span>{plate.recipe.name}</span><b>{plate.quantity} porciones</b></li>)}</ul>
-              <div className="table-wrap"><table><thead><tr><th>Ingrediente</th><th>Faltante</th><th>Producto</th><th>Envases</th><th>Compra</th><th>Procedencia</th></tr></thead><tbody>{currentPlan.supplies.map(item => <tr key={item.id}><th>{item.name}</th><td>{number(item.missing)} {item.unit}</td><td>{item.packages ? item.product.name : '—'}</td><td>{item.packages}</td><td>{money(item.purchase)}</td><td>{item.packages ? item.product.source ?? 'Demostración' : 'Inventario'}</td></tr>)}</tbody></table></div>
-            </> : <p>Guarda un plan para esta fecha desde Planificar.</p>}
-          </Panel>
-          <Panel title="Resumen semanal" action={weeklyRows.length > 0 && <button className="secondary" onClick={() => download('semana-' + week + '.csv', [
-            ['Fecha', 'Plato', 'Planificadas', 'Preparadas', 'Vendidas', 'Sobrantes', 'Agotado'], ...weeklyRows, [],
-            ['Referencia externa', 'Región', 'Periodo', 'Toneladas rescatadas', 'Personas beneficiadas (aprox.)', 'Fuente'],
-            ['Banco de Alimentos de ADRA Perú', 'Arequipa', 2025, 372.54, 85000, links[2][2]],
-          ])}>Descargar CSV</button>}>
-            <p>{week} a {end}</p>
-            {weeklyRows.length ? <div className="table-wrap"><table><thead><tr>{['Fecha', 'Plato', 'Planificadas', 'Preparadas', 'Vendidas', 'Sobrantes', 'Agotado'].map(label => <th key={label}>{label}</th>)}</tr></thead><tbody>{weeklyRows.map((row, index) => <tr key={index}>{row.map((value, column) => <td key={column}>{value === '' ? '—' : value}</td>)}</tr>)}</tbody></table></div> : <p>Aún no hay planes ni registros para esta semana.</p>}
-            <div className="context"><b>Rescate de alimentos en Arequipa · ADRA Perú, 2025</b><p>372,54 toneladas rescatadas y aproximadamente 85 000 personas beneficiadas en la región.</p><a href={links[2][2]} target="_blank" rel="noreferrer">Consultar publicación ↗</a></div>
-          </Panel>
-        </>}
-      </div>
-    </main>
-  </div>;
+  return (
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-icon" aria-hidden="true">
+            ◈
+          </span>
+          <div>
+            MenúRentable<small>AREQUIPA</small>
+          </div>
+        </div>
+        <nav aria-label="Navegación principal">
+          <button
+            className={"nav " + (page === "plan" ? "active" : "")}
+            aria-current={page === "plan" ? "page" : undefined}
+            onClick={() => {
+              setPage("plan");
+              window.scrollTo(0, 0);
+            }}
+          >
+            <span aria-hidden="true">▦</span>Preparar mi plan
+          </button>
+          <button
+            className={"nav " + (page === "saved" ? "active" : "")}
+            aria-current={page === "saved" ? "page" : undefined}
+            onClick={() => {
+              setJustSaved(null);
+              setPage("saved");
+              window.scrollTo(0, 0);
+            }}
+          >
+            <span aria-hidden="true">↺</span>Mis planes
+          </button>
+          <button
+            className={"nav " + (page === "kitchen" ? "active" : "")}
+            aria-current={page === "kitchen" ? "page" : undefined}
+            onClick={() => {
+              setPage("kitchen");
+              window.scrollTo(0, 0);
+            }}
+          >
+            <span aria-hidden="true">▤</span>Mi cocina
+          </button>
+        </nav>
+        <div className="sidebar-note">
+          <i
+            style={{
+              background: status === "connected" ? "#cad68d" : "#c3b492",
+            }}
+          />
+          {status === "connected"
+            ? "Conectado"
+            : status === "checking"
+              ? "Conectando…"
+              : "Sin conexión"}
+        </div>
+      </aside>
+      <main>
+        <header className="top">
+          <span>
+            MenúRentable AQP <b>/</b>{" "}
+            {page === "plan"
+              ? "Planificación"
+              : page === "kitchen"
+                ? "Mi cocina"
+                : "Mis planes"}
+          </span>
+          <span className="location">Arequipa, Perú</span>
+        </header>
+        <div className="content">
+          <div className="flow-welcome">
+            <span className="flow-eyebrow">DEL MENÚ A LA LISTA DE COMPRAS</span>
+            <h1>
+              {page === "plan"
+                ? "Organiza lo que vas a cocinar."
+                : page === "kitchen"
+                  ? "Tu cocina, lista para planificar."
+                  : "Tus planes, en un solo lugar."}
+            </h1>
+            <p>
+              {page === "plan"
+                ? "Elige tu menú, indica cuántos prepararás y calcula las compras antes de empezar."
+                : page === "kitchen"
+                  ? "Mantén tus recetas, existencias y precios al día."
+                  : "Revisa lo planificado y descarga lo que necesitas comprar."}
+            </p>
+          </div>
+          <div hidden={page !== "plan"}>
+            <CompleteMenuPlanner
+              key={version}
+              onSaved={saved}
+              revision={revision}
+            />
+          </div>
+          {page === "saved" && (
+            <SavedMenuPlans
+              key={justSaved?.id ?? "list"}
+              justSaved={justSaved}
+              onNew={newPlan}
+            />
+          )}
+          {page === "kitchen" && (
+            <Kitchen onChanged={() => setRevision((value) => value + 1)} />
+          )}
+          <footer className="flow-footer">
+            MenúRentable AQP · Planificación para pequeños negocios de comida
+          </footer>
+        </div>
+      </main>
+    </div>
+  );
 }
-createRoot(document.getElementById('root')).render(<App />);
+createRoot(document.getElementById("root")).render(<App />);
