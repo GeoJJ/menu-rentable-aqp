@@ -5,7 +5,7 @@ React presenta un recorrido principal en cuatro pasos: Menú, Cantidad, Insumos 
 Flujo nuevo:
 
 1. components/CompleteMenuPlanner.jsx dirige los cuatro pasos y usa MenuOffers.jsx para crear combinaciones. services/api.js centraliza solicitudes y formatos. SavedMenuPlans.jsx consulta los planes y su detalle, y MenuPlanSummary.jsx comparte el resumen entre resultado e historial.
-2. api/routes/menus.py valida entradas con schemas/menus.py y schemas/menu_plans.py.
+2. api/routes separa menus.py, menu_plans.py, catalog.py y sources.py. Los modelos de schemas validan las entradas; api/errors.py traduce errores comunes.
 3. repositories/menus.py administra catálogo y ofertas; repositories/menu_plans.py consulta datos y guarda planes dentro de una transacción.
 4. services/menu_planning.py calcula ingredientes, compras e ingresos con Decimal sin realizar consultas SQL.
 5. db/plans.py proporciona la conexión a PostgreSQL de Windows. También conserva el acceso a daily_plans de la versión legada.
@@ -14,4 +14,4 @@ El planificador anterior usa api/routes/planning.py y services/planning.py; calc
 
 Las migraciones viven en database/migrations y el catálogo inicial en database/catalogo_demo.json. Los scripts de la raíz scripts/ aplican la configuración y las migraciones. La información de autenticación se lee de .env local, excluido de Git.
 
-Las tablas de fuentes externas ya existen. Los conectores automáticos aún no están implementados. Cuando se incorporen, se creará un módulo de integraciones con adaptadores por fuente y persistencia de consultas y resultados.
+integrations/sources/midagri.py descubre y lee el boletín oficial. services/source_refresh.py controla caché y actualización; repositories/sources.py guarda intentos y datos válidos. La interfaz ExternalSources.jsx consulta estos endpoints. Un fallo conserva la última lectura correcta. No hay conectores privados ni de ONG todavía.

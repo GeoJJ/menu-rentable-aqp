@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { api, money, amount } from "../services/api.js";
+import { ExternalSources } from "./ExternalSources.jsx";
 const blankRecipe = () => ({
   nombre: "",
   categoria: "segundo",
@@ -163,7 +164,20 @@ export function Kitchen({ onChanged }) {
         >
           Despensa y precios
         </button>
+        <button
+          className={tab === "sources" ? "primary" : "secondary"}
+          disabled={busy}
+          onClick={() => {
+            setTab("sources");
+            setEditor(null);
+            setStock(null);
+            setMessage("");
+          }}
+        >
+          Referencias externas
+        </button>
       </div>
+      {tab === "sources" && <ExternalSources />}
       {message && (
         <p className="notice" role="status">
           {message}

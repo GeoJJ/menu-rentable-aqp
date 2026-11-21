@@ -14,3 +14,7 @@ api_router.include_router(planning_router, tags=["planificacion-legada"])
 from app.api.routes.catalog import router as catalog_router
 
 api_router.include_router(catalog_router, tags=["cocina"])
+
+from app.api.routes.sources import router as sources_router
+
+api_router.include_router(sources_router, tags=["fuentes-externas"])

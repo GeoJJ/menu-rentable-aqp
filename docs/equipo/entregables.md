@@ -2,7 +2,7 @@
 
 ## Base común
 
-Tema aprobado: planificación de porciones para pequeños negocios de comida. Precio único por menú completo, compuesto por caldo, segundo y refresco. Un negocio local, sin autenticación en este avance. Backend Python/FastAPI, frontend React y PostgreSQL instalado en Windows. La recuperación automática de datos de Estado, privados y ONG es una condición del profesor y sigue pendiente de implementación.
+Tema aprobado: planificación de porciones para pequeños negocios de comida. Precio único por menú completo, compuesto por caldo, segundo y refresco. Un negocio local, sin autenticación en este avance. Backend Python/FastAPI, frontend React y PostgreSQL instalado en Windows. La recuperación automática de datos de Estado, privados y ONG es una condición del profesor y está parcialmente implementada: ya existe MIDAGRI; las fuentes privadas y ONG siguen pendientes.
 
 ## Sergio e integración técnica
 
@@ -28,11 +28,11 @@ Cada base es independiente: los datos de Sergio no aparecen en la PC de otra per
 
 ## Estado para el informe
 
-Implementado: catálogo inicial en PostgreSQL; alta y consulta de menú con precio único; cálculo manual de cantidad, ingredientes y compras; guardado relacional y consulta de planes; preservación del precio histórico.
+Implementado: mantenimiento de recetas e ingredientes; existencias y cotizaciones manuales; menú con precio único; cálculo de cantidades y compras; planes relacionales y consulta de detalle histórico; descarga CSV; primera recuperación automática de MIDAGRI con procedencia y fechas.
 
-Pendiente: conectores automáticos; edición relacional de recetas e inventario; ventas reales por menú; pronóstico histórico por oferta; integración del historial y reportes legados; JasperReports; revisión visual completa.
+Pendiente: conectores privados y ONG; ventas reales por menú y sobrantes; pronóstico histórico; reportes de resultados diarios/semanales; edición de menús y planes; JasperReports. La revisión visual ejecutada cubre el recorrido principal, editor de recetas y panel de MIDAGRI, no todos los casos de uso posibles.
 
-No afirmar que ya se redujeron desperdicios ni que se recuperan precios automáticamente sin evidencia. No inventar entrevistas, encuestas, porcentajes de avance o resultados de negocio. El margen actual solo descuenta ingredientes.
+No afirmar que ya se redujeron desperdicios ni que se recuperan precios de todas las categorías de fuentes. La evidencia automática actual corresponde únicamente a MIDAGRI y a pollo vivo mayorista de Arequipa. No inventar entrevistas, encuestas, porcentajes de avance o resultados de negocio. El margen actual solo descuenta ingredientes.
 
 ## Antes de integrar y entregar
 

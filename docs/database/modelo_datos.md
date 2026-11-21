@@ -255,7 +255,7 @@ Las relaciones marcadas como uno o más detalles deben garantizarse al confirmar
 
 ## Decisiones que deben reflejarse en el informe
 
-El negocio vende un menú completo por un precio único. Se añaden cuatro entidades y se modifica el registro de ventas. El diseño queda en 19 tablas.
+El negocio vende un menú completo por un precio único. Se añaden cuatro entidades y se modifica el registro de ventas. El diseño queda en 18 tablas de dominio.
 
 ### ofertas_menu
 

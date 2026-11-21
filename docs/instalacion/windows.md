@@ -10,7 +10,7 @@ Cada integrante instala una copia independiente. No debe usar la contraseña de 
 
 ## Crear la base
 
-En pgAdmin, conectar al servidor local. Clic derecho en Databases, Create, Database. Nombre: menu_rentable; propietario: el usuario local autorizado (habitualmente postgres). Guardar. No crear manualmente las 19 tablas.
+En pgAdmin, conectar al servidor local. Clic derecho en Databases, Create, Database. Nombre: menu_rentable; propietario: el usuario local autorizado (habitualmente postgres). Guardar. No crear manualmente las 18 tablas de dominio.
 
 La configuración habitual es host 127.0.0.1 y puerto 5432. Si su instalación usa otro puerto, indicarlo al configurar la conexión.
 
@@ -24,7 +24,7 @@ python -m venv .venv
 .venv\Scripts\python.exe scripts/configurar_conexion.py
 ```
 
-El asistente solicita host, puerto, base, usuario y contraseña. La contraseña no se muestra. Primero comprueba la conexión y luego genera .env; si ya existe, pide confirmación para reemplazarlo. Este script no cambia la contraseña del servidor ni crea la base.
+El script solicita host, puerto, base, usuario y contraseña. La contraseña no se muestra. Primero comprueba la conexión y luego genera .env; si ya existe, pide confirmación para reemplazarlo. Este script no cambia la contraseña del servidor ni crea la base.
 
 Alternativamente, copiar .env.example a .env y editar DATABASE_URL con sus propios datos. No publicar una captura que muestre esa URL.
 
