@@ -43,7 +43,7 @@ El prototipo antiguo, sus datos de demostración en JavaScript, el selector de v
 
 ## Iniciar en Windows
 
-Seguir [instalación](docs/instalacion/windows.md). Después de actualizar:
+Seguir la [guía para el equipo: clonar, instalar, actualizar y compartir datos](docs/instalacion/windows.md). Después de actualizar:
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -r backend/requirements-lock.txt
@@ -68,7 +68,7 @@ El script utiliza una base separada `menu_rentable_backend_test` y esquemas temp
 ## Alcance y reglas
 
 - Un negocio local; no hay autenticación ni separación de usuarios.
-- Un plan por fecha. Puede cancelarse antes del cierre; no se edita ni se reemplaza una fecha histórica.
+- Un plan por fecha. Los pendientes pueden editarse con historial o cancelarse; los cerrados y cancelados conservan sus datos sin edición.
 - Guardar un plan no confirma compras ni descuenta ingredientes. No reemplaza el inventario real existente; solo inicializa ingredientes sin inventario a partir de sus existencias declaradas.
 - Cerrar descuenta según la receta histórica y los menús preparados; no representa pesajes reales independientes de cada ingrediente.
 - Compra estimada en presentaciones de 1 kg, 1 L o 1 unidad. El ingreso estimado supone vender toda la cantidad indicada.
@@ -76,7 +76,7 @@ El script utiliza una base separada `menu_rentable_backend_test` y esquemas temp
 - Pronóstico: promedio de hasta ocho cierres anteriores del mismo día de semana, o de últimos cierres si no hay comparables. Sin historia se solicita cantidad inicial. Los agotamientos requieren revisar la sugerencia.
 - MIDAGRI: pollo vivo referencial, no pollo eviscerado. Colección configurada para 2026. Plaza Vea: precio online sin confirmar entrega en Arequipa. ADRA: datos históricos de una publicación sobre 2025, no disponibilidad de donaciones.
 - Caché de seis horas y mínimo un minuto entre intentos por fuente. Las fuentes no cambian automáticamente inventario ni cotizaciones de compra.
-- Exportación CSV y PDF. Los PDF se generan en Python con ReportLab y fuentes incluidas en la dependencia.
+- Exportación CSV y PDF. Los PDF se generan en Python con ReportLab y fuentes locales en backend/app/assets/fonts.
 - `.env`, contraseñas, respaldos, logs y dependencias instaladas no se versionan.
 
 ## Ayudas para llenar los datos

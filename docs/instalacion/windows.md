@@ -1,12 +1,24 @@
 # Instalación en Windows para el equipo
 
-Cada integrante instala una copia independiente. No debe usar la contraseña de otra persona ni restaurar un respaldo de Sergio para crear las tablas. El esquema se construye con las migraciones del repositorio; los planes personales no son necesarios.
+Cada integrante instala una copia independiente con su propia contraseña de PostgreSQL. Docker no es necesario. Hay dos opciones: empezar con el catálogo inicial o restaurar un respaldo para disponer de los mismos planes, compras y cierres. No combinar ambas instalaciones en la misma base.
 
 ## Requisitos
 
 - PostgreSQL 18 y pgAdmin, con servicio iniciado y contraseña de su usuario local conocida.
 - Python 3.12 y Node.js 22.12 o superior compatible con Vite 7.
 - Git y VS Code.
+
+## Descargar el proyecto
+
+Abrir PowerShell en la carpeta donde se quiera guardar el proyecto:
+
+```powershell
+git clone https://github.com/GeoJJ/menu-rentable-aqp.git
+cd menu-rentable-aqp
+code .
+```
+
+Los siguientes comandos se ejecutan desde esa carpeta, donde están README.md, backend, frontend y scripts. Si ya tienen una copia, usar la sección Actualizar una instalación existente.
 
 ## Crear la base
 
@@ -35,7 +47,7 @@ Alternativamente, copiar .env.example a .env y editar DATABASE_URL con sus propi
 .venv\Scripts\python.exe scripts/sembrar_catalogo.py
 ```
 
-Las migraciones crean el esquema relacional, los movimientos de inventario, el estado del plan y las tres fuentes externas. Se puede repetir: las migraciones aplicadas no se ejecutan nuevamente. El catálogo agrega 26 recetas y 32 ingredientes sin reemplazar registros existentes. No agrega existencias, precios de compra ni ventas ficticias. Las recetas son una base inicial revisable, no una validación de costos del negocio.
+Las cinco migraciones actuales crean el esquema relacional, los movimientos de inventario, el estado del plan, las tres fuentes externas y el historial de ediciones. Se puede repetir: las migraciones aplicadas no se ejecutan nuevamente. El catálogo agrega 26 recetas y 32 ingredientes sin reemplazar registros existentes. No agrega menús completos, existencias, precios de compra ni ventas. Las recetas son una base inicial revisable, no una validación de costos del negocio.
 
 En pgAdmin: Databases, menu_rentable, Schemas, public, Tables; pulsar Refresh. Deben aparecer las tablas relacionales y schema_migrations. Una instalación anterior puede conservar daily_plans sin uso.
 
@@ -53,8 +65,8 @@ Terminal 2, raíz del proyecto:
 
 ```powershell
 Copy-Item frontend/.env.example frontend/.env
-npm --prefix frontend ci
-npm --prefix frontend run dev -- --host 127.0.0.1
+npm.cmd --prefix frontend ci
+npm.cmd --prefix frontend run dev -- --host 127.0.0.1
 ```
 
 Si frontend/.env ya existe, revisarlo antes de sobrescribirlo. Abrir http://127.0.0.1:5173. El archivo de ejemplo del frontend apunta al backend local en el puerto 8000.
@@ -66,8 +78,32 @@ Si frontend/.env ya existe, revisarlo antes de sobrescribirlo. Abrir http://127.
 3. Recargar: el menú debe permanecer.
 4. Continuar por Cantidad e Insumos; ingresar cantidades, existencias y precios reales o de una prueba claramente identificada.
 5. Calcular: ingreso = número de menús por precio único.
-6. Guardar un plan dentro del presupuesto y recargar; debe aparecer en Mis planes, con detalle y descarga CSV.
-7. Si falla, compartir el mensaje, paso y captura sin credenciales. No resetear la base como primera solución.
+6. Guardar un plan dentro del presupuesto y recargar; debe aparecer en Mis planes, con detalle y descarga CSV y PDF.
+7. Abrir Editar plan pendiente, cambiar cantidad, recalcular y guardar con motivo. Consultar la versión anterior en Historial del plan.
+8. Registrar las compras que falten en Compras y resultados. Revisar el cierre antes de confirmar: preparados, vendidos, precio por menú y otros gastos sin ingredientes. Solo se puede cerrar el día del plan o después.
+9. Consultar resultados por fechas y descargar PDF. Los planes cerrados o cancelados no se editan.
+10. Si falla, compartir el mensaje, paso y captura sin credenciales. No resetear la base como primera solución.
+
+## Actualizar una instalación existente
+
+Detener el proyecto con Ctrl+C y comprobar `git status`. Si hay trabajo propio pendiente, guardarlo en su rama antes de actualizar. Con la copia limpia, desde la raíz:
+
+```powershell
+git switch main
+git pull --ff-only origin main
+.venv\Scripts\python.exe -m pip install -r backend/requirements-lock.txt
+.venv\Scripts\python.exe scripts/migrar_base.py
+npm.cmd --prefix frontend ci
+npm.cmd run dev
+```
+
+Si Git informa conflictos o que no puede avanzar, conservar el mensaje y coordinar la integración; no usar reset para descartar trabajo. No hace falta volver a crear la base ni copiar .env otra vez. La migración 005 agrega el historial sin borrar los planes anteriores.
+
+## Tener los mismos planes, compras y cierres
+
+GitHub contiene código, migraciones y catálogo. Los ejemplos cargados en la computadora de Sergio están en su PostgreSQL local y no aparecen automáticamente al clonar.
+
+Para disponer de esos registros, Sergio debe generar y compartir un respaldo SQL con el comando de la sección siguiente. Quien lo recibe debe restaurarlo en una base nueva y vacía siguiendo Respaldo y restauración, configurar su .env para esa base y arrancar el proyecto. No ejecutar primero las migraciones ni el catálogo en esa base: el respaldo ya incluye tablas y datos. Después de futuras actualizaciones, sí ejecutar migrar_base.py para aplicar las migraciones nuevas.
 
 ## Respaldo y restauración
 
@@ -93,4 +129,26 @@ Cada persona crea su rama desde el avance compartido. Acordar antes qué archivo
 
 ## Inicio conjunto opcional
 
-Una vez preparados .venv, .env y las dependencias del frontend, se puede ejecutar npm run dev desde la raíz para iniciar ambos servicios. Usa .venv de la raíz (o backend/.venv como compatibilidad) y carga el .env de la raíz. Detén antes los procesos que ya usen 8000 y 5173.
+Una vez preparados .venv, .env y las dependencias del frontend, se puede ejecutar `npm.cmd run dev` desde la raíz para iniciar ambos servicios. Usa únicamente .venv y .env de la raíz. Mantener la terminal abierta; Ctrl+C detiene ambos servicios. Detén antes los procesos que ya usen 8000 y 5173.
+
+## Errores frecuentes
+
+| Mensaje o situación | Qué revisar |
+|---|---|
+| PostgreSQL rechaza la contraseña | Usar la contraseña del usuario de su propio servidor, no la contraseña maestra de pgAdmin ni asumir que es 123456. Repetir configurar_conexion.py. |
+| No existe menu_rentable | Crear la base antes de configurar la conexión. |
+| Falta una tabla, como plan_revisiones | Detener el backend, ejecutar migrar_base.py y volver a iniciarlo. |
+| No aparecen recetas | Ejecutar sembrar_catalogo.py en una instalación nueva y refrescar la web. |
+| No aparecen los planes de Sergio | Es normal al clonar; seguir Tener los mismos planes, compras y cierres. |
+| PowerShell bloquea npm.ps1 | Usar npm.cmd como en los comandos de esta guía. |
+| Puerto 8000 o 5173 ocupado | Detener la otra instancia del proyecto antes de iniciar una nueva. |
+| La web dice Sin conexión | Revisar que el backend siga activo y abrir http://127.0.0.1:8000/api/health. |
+
+Para validar código y compilación, desde la raíz:
+
+```powershell
+.venv\Scripts\python.exe scripts/probar_backend.py
+npm.cmd run build
+```
+
+Las pruebas usan una base separada. Si el usuario de PostgreSQL no tiene permiso para crear bases, crear menu_rentable_backend_test con un usuario autorizado antes de ejecutarlas.

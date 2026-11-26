@@ -14,7 +14,7 @@ Documentar Preparar mi plan, Mi cocina, Mis planes y Compras y resultados. Inclu
 
 ## Integrante de informe y diseños
 
-Actualizar requisitos, casos de uso y BPMN para incluir cierre de ventas, sobrantes, consumo de inventario y consultas de resultados. Actualizar el modelo con las migraciones 003 y 004. Relacionar clases del código con los diagramas. Distinguir una planificación de una venta real y no presentar el margen como utilidad contable neta.
+Actualizar requisitos, casos de uso y BPMN para incluir edición de planes con historial, cierre de ventas, sobrantes, consumo de inventario y consultas de resultados. Actualizar el modelo con las migraciones 003, 004 y 005. Relacionar clases del código con los diagramas. Distinguir una planificación de una venta real y no presentar el margen como utilidad contable neta.
 
 ## Base independiente de cada integrante
 
