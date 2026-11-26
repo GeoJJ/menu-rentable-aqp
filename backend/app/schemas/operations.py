@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Annotated, Literal
+
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Amount = Annotated[
@@ -33,6 +34,7 @@ class InventoryMovementInput(BaseModel):
 
 
 class DayClosingInput(BaseModel):
+    version: int = Field(default=1, gt=0)
     preparadas: int = Field(ge=0, le=100000)
     vendidas: int = Field(ge=0, le=100000)
     precio_menu_real: Money

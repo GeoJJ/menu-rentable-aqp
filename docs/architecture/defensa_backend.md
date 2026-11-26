@@ -23,6 +23,7 @@ Todos los archivos de la tabla están dentro de `backend/app/`.
 | ¿Dónde se genera el CSV de resultados? | `ReportCSVExporter.results()` | `services/csv_reports.py` |
 | ¿Dónde se guarda la oferta con precio único? | `MenuRepository.create_menu()` | `repositories/menus.py` |
 | ¿Dónde se guarda el plan histórico? | `MenuPlanRepository.save_menu_plan()` | `repositories/menu_plans.py` |
+| ¿Dónde se edita un plan pendiente y se conserva su versión anterior? | `MenuPlanRepository.update_menu_plan()` y `revisions()` | `repositories/menu_plans.py` |
 | ¿Dónde se registra una compra o merma? | `OperationsRepository.movement()` | `repositories/operations.py` |
 | ¿Dónde se guarda el cierre y descuenta el inventario una sola vez? | `OperationsRepository.close()` | `repositories/operations.py` |
 | ¿Dónde se cancela un plan sin borrar su historial? | `OperationsRepository.cancel()` | `repositories/operations.py` |
@@ -80,6 +81,10 @@ Los ingredientes se consumen por los menús preparados, incluidos los no vendido
 - Un plan cerrado no se cancela; cancelar solo afecta planes pendientes y no elimina datos.
 - Guardar un nuevo plan no reemplaza las existencias reales ya registradas. Si un ingrediente nunca tuvo inventario, se inicializa con la existencia declarada; cambios posteriores se hacen en la despensa o mediante movimientos.
 - El plan conserva nombres, cantidades y precios históricos, aunque cambie el catálogo después.
+- Editar un plan pendiente vuelve a llamar a `MenuPlanningCalculator.compute()` con las recetas y el precio actuales del menú seleccionado. La comparación permite revisar esos cambios antes de confirmar.
+- `MenuPlanUpdate` exige versión y motivo. `update_menu_plan()` bloquea la cabecera, valida estado, fecha disponible y presupuesto, guarda la captura completa anterior en `plan_revisiones` y sustituye los detalles en una sola transacción. Mantiene el identificador y aumenta `planes_diarios.version`.
+- La edición no cambia inventario ni registra compras o ventas. Si la edición falla, también se revierte la inserción del historial. Dos ediciones de la misma versión no se sobrescriben: la segunda debe volver a abrir el plan.
+- El cierre también comprueba la versión revisada. Un cierre preparado antes de una edición no puede consumir ingredientes hasta revisar el plan vigente.
 - Las compras y mermas quedan en `movimientos_inventario`; los ajustes manuales de la despensa también dejan movimiento cuando cambia la cantidad.
 - Las consultas SQL reciben parámetros; las contraseñas provienen de `.env`, nunca de React.
 
@@ -95,7 +100,7 @@ Las lecturas conservan enlace y fechas. Hay caché de seis horas y al menos un m
 
 1. Mostrar una receta y señalar `CatalogRepository.save_recipe()`.
 2. Calcular un plan y abrir `MenuPlanningCalculator.compute()`.
-3. Guardar el plan y explicar sus capturas históricas.
+3. Guardar el plan y explicar sus capturas históricas. Antes del cierre, abrir Editar plan pendiente, cambiar cantidad, revisar la comparación y guardar con motivo. Mostrar la versión anterior en Historial del plan y localizar `update_menu_plan()`.
 4. Registrar compras reales en Compras y resultados.
 5. En Mis planes, abrir el plan y completar su cierre. Confirmar los movimientos y el saldo.
 6. Consultar resultados por fechas y descargar CSV o PDF generados en Python. Desde Mis planes también se descarga el plan y su lista de compras en PDF.
@@ -107,7 +112,7 @@ Para una demostración que escriba compras o ventas ficticias, usar una base de 
 
 ## Alcance y límites
 
-Aplicación local para un negocio, sin autenticación ni separación de usuarios. Un plan por fecha; puede cancelarse, pero no se reescribe ni se elimina una fecha histórica. El consumo real se estima con las cantidades de la receta congeladas en el plan, no por pesaje de cada ingrediente utilizado. El margen incluye solo los costos y gastos declarados; no debe presentarse como utilidad contable neta. Las mermas de ingredientes se auditan en inventario, pero no se agregan automáticamente al margen del reporte de cierres. Se exportan CSV y PDF desde Python; los PDF se construyen con ReportLab. El prototipo y su API antigua fueron retirados; las tablas históricas existentes no se borraron.
+Aplicación local para un negocio, sin autenticación ni separación de usuarios. Un plan por fecha; los pendientes pueden editarse con historial o cancelarse. Los cerrados y cancelados conservan sus datos sin edición; la corrección de cierres todavía no está implementada. El consumo real se estima con las cantidades de la receta congeladas en la versión vigente del plan, no por pesaje de cada ingrediente utilizado. El margen incluye solo los costos y gastos declarados; no debe presentarse como utilidad contable neta. Las mermas de ingredientes se auditan en inventario, pero no se agregan automáticamente al margen del reporte de cierres. Se exportan CSV y PDF desde Python; los PDF se construyen con ReportLab. El prototipo y su API antigua fueron retirados; las tablas históricas existentes no se borraron.
 
 Este mapa es la documentación vigente. Las guías de cortes anteriores se retiraron del repositorio activo para evitar referencias a archivos eliminados.
 

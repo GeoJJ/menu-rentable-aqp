@@ -6,10 +6,17 @@ const today = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Lima" }).format(
     new Date(),
   );
-export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
+export function CompleteMenuPlanner({
+  onSaved,
+  revision = 0,
+  editPlan = null,
+  onCancel,
+}) {
   const [step, setStep] = useState(0),
     [menus, setMenus] = useState([]),
-    [selected, setSelected] = useState(""),
+    [selected, setSelected] = useState(
+      editPlan ? String(editPlan.menu.id) : "",
+    ),
     [details, setDetails] = useState(null),
     [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState(null),
@@ -19,11 +26,12 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
     [error, setError] = useState(""),
     [result, setResult] = useState(null);
   const [form, setForm] = useState({
-    fecha: today(),
-    cantidad: 30,
-    presupuesto: 200,
+    fecha: editPlan?.fecha ?? today(),
+    cantidad: editPlan?.cantidad ?? 30,
+    presupuesto: editPlan?.presupuesto ?? 200,
     insumos: {},
   });
+  const [reason, setReason] = useState("");
   const title = useRef(null);
   const [forecast, setForecast] = useState(null);
   useEffect(() => setForecast(null), [selected, form.fecha]);
@@ -63,18 +71,25 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
       api(`menus/${selected}/requirements`, { signal: controller.signal })
         .then((d) => {
           setDetails(d);
+          const original =
+            String(editPlan?.menu.id) === selected
+              ? Object.fromEntries(editPlan.insumos.map((i) => [i.id, i]))
+              : {};
           setForm((f) => ({
             ...f,
             insumos: Object.fromEntries(
-              d.insumos.map((i) => [
-                i.id,
-                {
-                  existencia: i.existencia ?? "",
-                  costo_unitario:
-                    i.existencia === 0 ? "0" : (i.costo_unitario ?? ""),
-                  precio_compra: i.precio_compra ?? "",
-                },
-              ]),
+              d.insumos.map((current) => {
+                const i = original[current.id] ?? current;
+                return [
+                  i.id,
+                  {
+                    existencia: i.existencia ?? "",
+                    costo_unitario:
+                      i.existencia === 0 ? "0" : (i.costo_unitario ?? ""),
+                    precio_compra: i.precio_compra ?? "",
+                  },
+                ];
+              }),
             ),
           }));
         })
@@ -86,7 +101,7 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
         });
     }
     return () => controller.abort();
-  }, [selected, revision, menuRevision]);
+  }, [selected, revision, menuRevision, editPlan]);
   function next(value) {
     setError("");
     setStep(value);
@@ -126,11 +141,22 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
       setBusy(false);
     }
   }
-  async function save() {
+  async function save(event) {
+    event?.preventDefault();
     setBusy(true);
     setError("");
     try {
-      const saved = await api(`menus/${selected}/plans`, { body: form });
+      const saved = editPlan
+        ? await api(`menu-plans/${editPlan.id}`, {
+            method: "PUT",
+            body: {
+              ...form,
+              menu_id: Number(selected),
+              version: editPlan.version,
+              motivo: reason.trim(),
+            },
+          })
+        : await api(`menus/${selected}/plans`, { body: form });
       onSaved(saved);
     } catch (e) {
       setError(e.message);
@@ -148,6 +174,28 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
   }
   return (
     <div className="journey">
+      {editPlan && (
+        <section className="panel flow-panel">
+          <h2>Editar plan pendiente</h2>
+          <p>
+            Plan del {editPlan.fecha} · versión {editPlan.version}. Revisa los
+            datos y el nuevo cálculo antes de guardar.
+          </p>
+          <p className="example-note">
+            Se usarán las recetas y el precio actuales del menú elegido. Para el
+            menú original, los datos de ingredientes empiezan con lo que
+            guardaste. Actualízalos si hace falta.
+          </p>
+          <button
+            type="button"
+            className="secondary"
+            disabled={busy}
+            onClick={onCancel}
+          >
+            Cancelar edición y volver al plan
+          </button>
+        </section>
+      )}
       <ol className="flow-steps" aria-label="Progreso del plan">
         {["Menú", "Cantidad", "Insumos", "Resultado"].map((label, index) => (
           <li
@@ -195,6 +243,13 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
                     }}
                   >
                     <option value="">Seleccionar una combinación</option>
+                    {editPlan &&
+                      !menus.some((m) => String(m.id) === selected) &&
+                      selected && (
+                        <option value={selected} disabled>
+                          Menú original no disponible: elige otro
+                        </option>
+                      )}
                     {menus.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.nombre} · {money(m.precio_menu)}
@@ -221,33 +276,37 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
                   </ul>
                 )}
                 <div className="flow-actions">
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => {
-                      setEditing(null);
-                      setCreating(true);
-                      setError("");
-                    }}
-                  >
-                    + Crear otra combinación
-                  </button>
-                  {details && (
-                    <button
-                      type="button"
-                      className="secondary"
-                      disabled={loading}
-                      onClick={() => {
-                        setEditing({
-                          ...details.menu,
-                          componentes: details.componentes,
-                        });
-                        setCreating(true);
-                        setError("");
-                      }}
-                    >
-                      Editar este menú
-                    </button>
+                  {!editPlan && (
+                    <>
+                      <button
+                        type="button"
+                        className="secondary"
+                        onClick={() => {
+                          setEditing(null);
+                          setCreating(true);
+                          setError("");
+                        }}
+                      >
+                        + Crear otra combinación
+                      </button>
+                      {details && (
+                        <button
+                          type="button"
+                          className="secondary"
+                          disabled={loading}
+                          onClick={() => {
+                            setEditing({
+                              ...details.menu,
+                              componentes: details.componentes,
+                            });
+                            setCreating(true);
+                            setError("");
+                          }}
+                        >
+                          Editar este menú
+                        </button>
+                      )}
+                    </>
                   )}
                   <button
                     className="primary"
@@ -473,8 +532,83 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
           </form>
         )}
         {step === 3 && result && (
-          <>
+          <form onSubmit={save}>
+            {editPlan && (
+              <>
+                <h3>Revisa qué cambiará</h3>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Dato</th>
+                        <th>Guardado</th>
+                        <th>Nuevo cálculo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ["Fecha", editPlan.fecha, result.fecha],
+                        ["Menú", editPlan.menu.nombre, result.menu.nombre],
+                        [
+                          "Precio por menú",
+                          money(editPlan.menu.precio_menu),
+                          money(result.menu.precio_menu),
+                        ],
+                        [
+                          "Cantidad de menús",
+                          editPlan.cantidad,
+                          result.cantidad,
+                        ],
+                        [
+                          "Presupuesto",
+                          money(editPlan.presupuesto),
+                          money(result.presupuesto),
+                        ],
+                        [
+                          "Compra estimada",
+                          money(editPlan.compra),
+                          money(result.compra),
+                        ],
+                        [
+                          "Costo de ingredientes",
+                          money(editPlan.costo_ingredientes),
+                          money(result.costo_ingredientes),
+                        ],
+                        [
+                          "Margen estimado",
+                          money(editPlan.margen_estimado),
+                          money(result.margen_estimado),
+                        ],
+                      ].map(([label, before, after]) => (
+                        <tr key={label}>
+                          <th>{label}</th>
+                          <td>{before}</td>
+                          <td>{after}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
             <MenuPlanSummary plan={result} />
+            {editPlan && (
+              <label>
+                Motivo del cambio
+                <textarea
+                  required
+                  minLength={3}
+                  maxLength={500}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Por ejemplo: recibí una reserva y prepararé más menús."
+                />
+                <small>
+                  Se guardará junto con la versión anterior para que puedas
+                  consultar lo que cambió.
+                </small>
+              </label>
+            )}
             {!result.factible && (
               <p className="flow-error" role="alert">
                 La compra supera tu presupuesto. Vuelve para ajustar la cantidad
@@ -483,6 +617,7 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
             )}
             <div className="flow-actions">
               <button
+                type="button"
                 className="secondary"
                 disabled={busy}
                 onClick={() => next(2)}
@@ -491,13 +626,20 @@ export function CompleteMenuPlanner({ onSaved, revision = 0 }) {
               </button>
               <button
                 className="primary"
-                disabled={busy || !result.factible}
-                onClick={save}
+                disabled={
+                  busy ||
+                  !result.factible ||
+                  (editPlan && reason.trim().length < 3)
+                }
               >
-                {busy ? "Guardando…" : "Guardar plan y ver resumen"}
+                {busy
+                  ? "Guardando…"
+                  : editPlan
+                    ? "Guardar cambios del plan"
+                    : "Guardar plan y ver resumen"}
               </button>
             </div>
-          </>
+          </form>
         )}
       </section>
     </div>

@@ -3,11 +3,13 @@
 from datetime import datetime
 from decimal import Decimal
 from zoneinfo import ZoneInfo
+
 from psycopg.rows import dict_row
+
 from app.db.connection import connect
-from app.services.inventory import InventoryCalculator
 from app.services.day_closing import DayClosingCalculator
 from app.services.demand_forecast import DemandForecaster
+from app.services.inventory import InventoryCalculator
 from app.services.reports import ReportCalculator
 
 
@@ -82,11 +84,15 @@ class OperationsRepository:
     def _closing_context(c, plan_id, data):
         cursor = c.cursor(row_factory=dict_row)
         plan = cursor.execute(
-            "SELECT p.id,p.fecha,p.estado,o.oferta_id,o.nombre_oferta,o.menus_planificados FROM planes_diarios p JOIN plan_ofertas o ON o.plan_id=p.id WHERE p.id=%s FOR UPDATE OF p",
+            "SELECT p.id,p.fecha,p.estado,p.version,o.oferta_id,o.nombre_oferta,o.menus_planificados FROM planes_diarios p JOIN plan_ofertas o ON o.plan_id=p.id WHERE p.id=%s FOR UPDATE OF p",
             (plan_id,),
         ).fetchone()
         if not plan or plan["estado"] != "planificado":
             raise ValueError("El plan no existe, está cancelado o ya fue cerrado")
+        if plan["version"] != data.version:
+            raise ValueError(
+                "El plan cambió de versión. Vuelve a abrirlo y revisa el cierre con los datos actuales."
+            )
         if plan["fecha"] > datetime.now(ZoneInfo("America/Lima")).date():
             raise ValueError(
                 "Puedes registrar el cierre el día del plan o después, cuando sepas cuánto preparaste y vendiste"
@@ -125,7 +131,7 @@ class OperationsRepository:
     def preview_closing(plan_id, data):
         with connect() as c:
             c.execute("SELECT pg_advisory_xact_lock(20261126)")
-            plan, items, cost = OperationsRepository._closing_context(c, plan_id, data)
+            _plan, items, cost = OperationsRepository._closing_context(c, plan_id, data)
             possible = all(i["faltante"] == 0 for i in items)
             return {
                 "plan_id": plan_id,

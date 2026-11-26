@@ -39,6 +39,12 @@ def client(monkeypatch):
                     / "database/migrations/003_operacion_diaria.sql"
                 ).read_text(encoding="utf-8-sig")
             )
+            c.execute(
+                (
+                    Path(__file__).resolve().parents[2]
+                    / "database/migrations/005_edicion_planes.sql"
+                ).read_text(encoding="utf-8-sig")
+            )
             for category in ["caldo", "segundo", "refresco"]:
                 c.execute(
                     "INSERT INTO recetas(nombre,categoria,rendimiento) VALUES (%s,%s,10)",

@@ -29,3 +29,9 @@ Archivo Variable se usa en títulos, contenido y cifras. Los encabezados princip
 | `--success` | `#27604a` | Confirmaciones y cierres |
 
 Las advertencias y confirmaciones conservan sus mensajes escritos; el significado no depende únicamente del color. La navegación móvil muestra las cuatro secciones y las tablas largas se desplazan dentro de su contenedor.
+
+## Reportes PDF
+
+`backend/app/services/pdf_reports.py` presenta planes y resultados con la misma identidad: marca de plato y cubiertos, cabecera grafito, acentos terracota, títulos en Archivo 800 y paneles de cifras. Las tablas repiten sus encabezados al cambiar de página y el pie indica fecha de generación y número de página.
+
+Las fuentes estáticas y sus licencias están en `backend/app/assets/fonts/`. Se incrustan en el documento para conservar el aspecto en otras computadoras. La generación usa ReportLab y los datos ya calculados por los servicios; el cambio visual no modifica importes, inventario ni ventas.

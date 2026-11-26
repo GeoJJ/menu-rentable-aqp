@@ -32,6 +32,7 @@ export function DayClosing({ plan, onChanged, onPurchases = () => {} }) {
       setPreview(
         await api(`menu-plans/${plan.id}/closing-preview`, {
           body: {
+            version: plan.version,
             preparadas: Number(f.get("preparadas")),
             vendidas: Number(f.get("vendidas")),
             precio_menu_real: f.get("precio"),

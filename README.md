@@ -33,7 +33,7 @@ docs/architecture/     Arquitectura y mapa de clases para sustentación
 
 1. **Mi cocina:** crear y editar recetas; registrar ingredientes, existencias y cotizaciones manuales.
 2. **Preparar mi plan:** elegir o editar el menú (nombre, precio y recetas), ingresar fecha y cantidad, consultar sugerencia histórica si existen cierres, revisar insumos y calcular. Python agrega ingredientes compartidos, calcula faltantes, redondea compras y verifica presupuesto.
-3. **Mis planes:** consultar el plan histórico y descargar la lista de compras en CSV o PDF.
+3. **Mis planes:** consultar el plan y descargar la lista de compras en CSV o PDF. Mientras esté pendiente, editar fecha, menú, cantidad, presupuesto e insumos; revisar la comparación y guardar con un motivo. El historial conserva las versiones anteriores. Un plan cerrado o cancelado no se edita.
 4. **Compras y resultados:** elegir Registrar compra, Registrar pérdida o Ver resultados. En una compra se indica ingrediente, cantidad recibida y total pagado; Python calcula el precio unitario y actualiza el costo promedio ponderado.
 5. **Cierre del día:** desde el detalle del plan registrar preparados, vendidos, precio por menú y otros gastos sin ingredientes. Revisar el cierre antes de confirmar; la vista previa no guarda ni descuenta. Se valida stock y se descuenta el consumo de todos los menús preparados una sola vez, dentro de una transacción. Se guardan ingreso, sobrantes y costo real según receta.
 6. **Resultados:** comparar planificado y real por fechas, sumar cierres y descargar CSV o PDF generados por Python.

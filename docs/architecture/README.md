@@ -32,6 +32,7 @@ backend/app/
     http.py           Descarga compartida de páginas configuradas
     errors.py         SourceError: fallos recuperables de lectura
   db/connection.py     Database: conexión a PostgreSQL
+  assets/fonts/        Archivo y Michroma incrustadas en los PDF, con licencias
 
 frontend/src/
   features/planning/   Menús, planificación y consulta de planes

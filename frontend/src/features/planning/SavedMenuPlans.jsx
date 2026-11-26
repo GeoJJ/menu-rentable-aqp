@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { api, money, downloadFile } from "../../services/api.js";
 import { MenuPlanSummary } from "./MenuPlanSummary.jsx";
 import { DayClosing } from "../operations/DayClosing.jsx";
+import { CompleteMenuPlanner } from "./CompleteMenuPlanner.jsx";
+import { PlanRevisionHistory } from "./PlanRevisionHistory.jsx";
 export function SavedMenuPlans({
   justSaved,
   onNew,
@@ -14,6 +16,22 @@ export function SavedMenuPlans({
     [loading, setLoading] = useState(true),
     [opening, setOpening] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [notice, setNotice] = useState("");
+  async function changed(plan) {
+    setDetail(plan);
+    setEditing(false);
+    setNotice(
+      `Cambios guardados. Estás viendo la versión ${plan.version} de tu plan.`,
+    );
+    window.scrollTo(0, 0);
+    onChanged();
+    try {
+      setPlans(await api("menu-plans"));
+    } catch (e) {
+      setError(e.message);
+    }
+  }
   async function downloadPdf() {
     setPdfBusy(true);
     setError("");
@@ -43,6 +61,7 @@ export function SavedMenuPlans({
   async function open(id, focusClosing = false) {
     setOpening(true);
     setError("");
+    setNotice("");
     try {
       setDetail(await api(`menu-plans/${id}`));
       window.scrollTo(0, 0);
@@ -111,9 +130,21 @@ export function SavedMenuPlans({
           {error}
         </p>
       )}
-      {detail ? (
+      {editing && detail ? (
+        <CompleteMenuPlanner
+          key={`${detail.id}-${detail.version}`}
+          editPlan={detail}
+          onSaved={changed}
+          onCancel={() => setEditing(false)}
+        />
+      ) : detail ? (
         <>
           <section className="panel flow-panel">
+            {notice && (
+              <p className="notice" role="status">
+                {notice}
+              </p>
+            )}
             {justSaved?.id === detail.id && (
               <p className="notice" role="status">
                 Tu plan quedó guardado como una estimación. Todavía no registra
@@ -124,9 +155,28 @@ export function SavedMenuPlans({
             )}
             <MenuPlanSummary plan={detail} />
             <div className="flow-actions">
-              <button className="secondary" onClick={() => setDetail(null)}>
+              <button
+                className="secondary"
+                onClick={() => {
+                  setDetail(null);
+                  setNotice("");
+                }}
+              >
                 ← Todos mis planes
               </button>
+              {detail.estado === "planificado" && (
+                <button
+                  className="primary"
+                  onClick={() => {
+                    setEditing(true);
+                    setNotice("");
+                    setError("");
+                    window.scrollTo(0, 0);
+                  }}
+                >
+                  Editar plan pendiente
+                </button>
+              )}
               <button className="secondary" onClick={download}>
                 Descargar lista y resumen CSV
               </button>
@@ -143,7 +193,7 @@ export function SavedMenuPlans({
             </div>
           </section>
           <DayClosing
-            key={detail.id}
+            key={`closing-${detail.id}-${detail.version}`}
             plan={detail}
             onPurchases={onPurchases}
             onChanged={() => {
@@ -154,6 +204,10 @@ export function SavedMenuPlans({
               onChanged();
             }}
           />
+          <PlanRevisionHistory
+            key={`history-${detail.id}-${detail.version}`}
+            plan={detail}
+          />
         </>
       ) : (
         <section className="panel flow-panel">
@@ -161,7 +215,8 @@ export function SavedMenuPlans({
           <p>
             Un plan muestra lo que pensabas preparar. Cuando termines de vender
             ese día, pulsa Cerrar este día para registrar lo que realmente pasó.
-            No cierres el plan antes de cocinar o vender.
+            No cierres el plan antes de cocinar o vender. Puedes editar los
+            datos mientras siga pendiente de cierre.
           </p>
           {loading && <p role="status">Cargando planes…</p>}
           {!loading && !plans.length && (

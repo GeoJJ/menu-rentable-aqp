@@ -2,7 +2,7 @@
 
 ## Propósito y alcance
 
-Modelo relacional propuesto para un negocio de comida, con importes en soles y fechas de operación de Arequipa. Integra recetas, inventario, fuentes externas, planificación y resultados. El esquema descrito se implementó en database/migrations/001_relacional_menu.sql. El catálogo y los menús completos ya se consultan en PostgreSQL y el nuevo planificador guarda cabecera y detalles relacionales. Las pantallas legadas conservan datos en el navegador y daily_plans sigue disponible para compatibilidad. Las tablas de fuentes y ventas existen, pero sus flujos siguen pendientes.
+Modelo relacional para un negocio de comida, con importes en soles y fechas de operación de Arequipa. Integra recetas, inventario, fuentes externas, planificación y resultados. La migración inicial se amplía con las migraciones descritas al final del documento. Las operaciones actuales usan PostgreSQL desde Python. La aplicación legada se retiró; una tabla daily_plans de instalaciones anteriores puede permanecer sin uso.
 
 El diseño inicial no incluye autenticación ni múltiples negocios. Registrar una organización como fuente no equivale a tener un conector automático implementado. Los datos de ONG pueden ser informativos y no necesariamente contienen precios.
 
@@ -326,4 +326,14 @@ La migración 003_operacion_diaria agrega:
 
 La migración 004_fuentes_complementarias registra los conectores plazavea (privada) y adra (ong). Se reutilizan fuentes_externas, consultas_fuentes y registros_externos; los productos externos no reemplazan automáticamente cotizaciones o inventario.
 
-Con estas migraciones hay 19 tablas de dominio y schema_migrations en una instalación limpia. Las instalaciones previas pueden conservar daily_plans sin uso. Las capturas de planes anteriores no se eliminan ni se reescriben al cerrar.
+La migración 005_edicion_planes agrega `plan_revisiones`:
+
+- `id`: clave primaria; `plan_id`: FK a planes_diarios sin eliminación en cascada.
+- `version`: versión sustituida, mayor que cero; única dentro del plan.
+- `motivo`: explicación del cambio, entre 3 y 500 caracteres sin espacios en los extremos.
+- `reemplazado_en`: fecha y hora del cambio, con zona horaria.
+- `datos`: JSONB con cabecera, ofertas, platos, enlaces e insumos completos y un resumen para consulta. Conserva los importes decimales como texto para evitar pérdida de precisión.
+
+Se reutiliza `planes_diarios.version`, inicialmente 1. Una edición pendiente aumenta la versión y actualiza cabecera y detalles dentro de la misma transacción que conserva la versión anterior. No registra movimientos de inventario. Una solicitud con una versión antigua se rechaza. Los cierres verifican también la versión, para no aplicar una revisión anterior de un plan recién editado.
+
+Con estas migraciones hay 20 tablas de dominio y schema_migrations en una instalación limpia. Las instalaciones previas pueden conservar daily_plans sin uso. Las capturas de planes anteriores no se eliminan ni se reescriben al cerrar.

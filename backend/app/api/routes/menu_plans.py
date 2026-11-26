@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from app.api.errors import database_call
 from app.repositories import menu_plans
-from app.schemas.menu_plans import MenuPlanInput
+from app.schemas.menu_plans import MenuPlanInput, MenuPlanUpdate
 
 router = APIRouter()
 
@@ -32,3 +32,13 @@ def menu_plans_list():
 @router.get("/menu-plans/{plan_id}")
 def menu_plan_detail(plan_id: int):
     return database_call(menu_plans.MenuPlanRepository.saved_menu_plan, plan_id)
+
+
+@router.put("/menu-plans/{plan_id}")
+def menu_plan_update(plan_id: int, data: MenuPlanUpdate):
+    return database_call(menu_plans.MenuPlanRepository.update_menu_plan, plan_id, data)
+
+
+@router.get("/menu-plans/{plan_id}/revisions")
+def menu_plan_revisions(plan_id: int):
+    return database_call(menu_plans.MenuPlanRepository.revisions, plan_id)
