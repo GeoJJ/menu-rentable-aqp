@@ -33,12 +33,23 @@ def client(monkeypatch):
                     / "database/migrations/001_relacional_menu.sql"
                 ).read_text(encoding="utf-8-sig")
             )
+            c.execute(
+                (
+                    Path(__file__).resolve().parents[2]
+                    / "database/migrations/003_operacion_diaria.sql"
+                ).read_text(encoding="utf-8-sig")
+            )
             for category in ["caldo", "segundo", "refresco"]:
                 c.execute(
                     "INSERT INTO recetas(nombre,categoria,rendimiento) VALUES (%s,%s,10)",
                     (category, category),
                 )
         monkeypatch.setattr(menus, "connect", connection)
+        from app.repositories import catalog, menu_plans, operations, sources
+        from app.services import source_refresh
+
+        for module in (catalog, menu_plans, operations, sources, source_refresh):
+            monkeypatch.setattr(module, "connect", connection)
         yield TestClient(app), connection
     finally:
         with psycopg.connect(url, autocommit=True) as c:

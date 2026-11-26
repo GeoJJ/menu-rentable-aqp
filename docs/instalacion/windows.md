@@ -10,7 +10,7 @@ Cada integrante instala una copia independiente. No debe usar la contraseña de 
 
 ## Crear la base
 
-En pgAdmin, conectar al servidor local. Clic derecho en Databases, Create, Database. Nombre: menu_rentable; propietario: el usuario local autorizado (habitualmente postgres). Guardar. No crear manualmente las 18 tablas de dominio.
+En pgAdmin, conectar al servidor local. Clic derecho en Databases, Create, Database. Nombre: menu_rentable; propietario: el usuario local autorizado (habitualmente postgres). Guardar. No crear manualmente las tablas: las migraciones preparan el esquema.
 
 La configuración habitual es host 127.0.0.1 y puerto 5432. Si su instalación usa otro puerto, indicarlo al configurar la conexión.
 
@@ -35,9 +35,9 @@ Alternativamente, copiar .env.example a .env y editar DATABASE_URL con sus propi
 .venv\Scripts\python.exe scripts/sembrar_catalogo.py
 ```
 
-La migración crea el esquema relacional y la tabla legada de compatibilidad. Se puede repetir: las migraciones aplicadas no se ejecutan nuevamente. El catálogo agrega 26 recetas y 32 ingredientes sin reemplazar registros existentes. No agrega existencias, precios de compra ni ventas ficticias. Las recetas son una base inicial revisable, no una validación de costos del negocio.
+Las migraciones crean el esquema relacional, los movimientos de inventario, el estado del plan y las tres fuentes externas. Se puede repetir: las migraciones aplicadas no se ejecutan nuevamente. El catálogo agrega 26 recetas y 32 ingredientes sin reemplazar registros existentes. No agrega existencias, precios de compra ni ventas ficticias. Las recetas son una base inicial revisable, no una validación de costos del negocio.
 
-En pgAdmin: Databases, menu_rentable, Schemas, public, Tables; pulsar Refresh. Deben aparecer las tablas relacionales, schema_migrations y daily_plans.
+En pgAdmin: Databases, menu_rentable, Schemas, public, Tables; pulsar Refresh. Deben aparecer las tablas relacionales y schema_migrations. Una instalación anterior puede conservar daily_plans sin uso.
 
 No modificar una migración que ya ejecutó otro integrante. Para cambios posteriores se crea un nuevo archivo SQL numerado, que registra su versión en schema_migrations dentro de la misma transacción.
 

@@ -9,7 +9,7 @@ Number = Annotated[
 ]
 
 
-class StockInput(BaseModel):
+class PlanIngredientInput(BaseModel):
     existencia: Number
     costo_unitario: Number
     precio_compra: Number
@@ -19,4 +19,4 @@ class MenuPlanInput(BaseModel):
     fecha: date
     cantidad: int = Field(gt=0, le=100000)
     presupuesto: Annotated[Decimal, Field(ge=0, max_digits=14, decimal_places=2)]
-    insumos: dict[int, StockInput]
+    insumos: dict[int, PlanIngredientInput]

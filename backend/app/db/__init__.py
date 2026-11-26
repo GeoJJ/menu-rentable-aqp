@@ -1,1 +1,1 @@
-
+"""Configuración de la conexión a PostgreSQL."""

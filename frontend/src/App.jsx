@@ -1,14 +1,23 @@
 import React, { useEffect, useState } from "react";
-import { createRoot } from "react-dom/client";
-import { CompleteMenuPlanner } from "./components/CompleteMenuPlanner.jsx";
-import { SavedMenuPlans } from "./components/SavedMenuPlans.jsx";
-import { Kitchen } from "./components/Kitchen.jsx";
+import { CompleteMenuPlanner } from "./features/planning/CompleteMenuPlanner.jsx";
+import { SavedMenuPlans } from "./features/planning/SavedMenuPlans.jsx";
+import { Kitchen } from "./features/kitchen/Kitchen.jsx";
+import { BusinessResults } from "./features/operations/BusinessResults.jsx";
+import { WorkflowGuide } from "./components/FormHelp.jsx";
 import { api } from "./services/api.js";
-import "./styles/style.css";
+import "./styles/fonts.css";
+import "./styles/base.css";
+import "./styles/workspace.css";
 import "./styles/theme.css";
-import "./styles/journey.css";
-function App() {
+export default function App() {
   const [revision, setRevision] = useState(0);
+  const [resultsKey, setResultsKey] = useState(0);
+  function navigate(next) {
+    setPage(next);
+    if (next === "saved") setJustSaved(null);
+    if (next === "results") setResultsKey((v) => v + 1);
+    window.scrollTo(0, 0);
+  }
   const [page, setPage] = useState("plan"),
     [version, setVersion] = useState(0),
     [justSaved, setJustSaved] = useState(null),
@@ -39,9 +48,19 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-icon" aria-hidden="true">
-            ◈
+            <svg
+              viewBox="0 0 32 32"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="16" cy="17" r="7.5" />
+              <path d="M4 5v7m3-7v7M4 9h3m-1.5 3v15M27 5v22m0-22c-4 4-4 10 0 10" />
+            </svg>
           </span>
-          <div>
+          <div className="brand-wordmark">
             MenúRentable<small>AREQUIPA</small>
           </div>
         </div>
@@ -77,13 +96,16 @@ function App() {
           >
             <span aria-hidden="true">▤</span>Mi cocina
           </button>
+          <button
+            className={"nav " + (page === "results" ? "active" : "")}
+            aria-current={page === "results" ? "page" : undefined}
+            onClick={() => navigate("results")}
+          >
+            <span aria-hidden="true">▥</span>Compras y resultados
+          </button>
         </nav>
         <div className="sidebar-note">
-          <i
-            style={{
-              background: status === "connected" ? "#cad68d" : "#c3b492",
-            }}
-          />
+          <i data-status={status} />
           {status === "connected"
             ? "Conectado"
             : status === "checking"
@@ -99,7 +121,9 @@ function App() {
               ? "Planificación"
               : page === "kitchen"
                 ? "Mi cocina"
-                : "Mis planes"}
+                : page === "results"
+                  ? "Compras y resultados"
+                  : "Mis planes"}
           </span>
           <span className="location">Arequipa, Perú</span>
         </header>
@@ -111,16 +135,21 @@ function App() {
                 ? "Organiza lo que vas a cocinar."
                 : page === "kitchen"
                   ? "Tu cocina, lista para planificar."
-                  : "Tus planes, en un solo lugar."}
+                  : page === "results"
+                    ? "De lo planificado a lo vendido."
+                    : "Tus planes, en un solo lugar."}
             </h1>
             <p>
               {page === "plan"
                 ? "Elige tu menú, indica cuántos prepararás y calcula las compras antes de empezar."
                 : page === "kitchen"
                   ? "Mantén tus recetas, existencias y precios al día."
-                  : "Revisa lo planificado y descarga lo que necesitas comprar."}
+                  : page === "results"
+                    ? "Registra compras y pérdidas, y consulta tus resultados reales."
+                    : "Abre un plan para ver las compras previstas o registrar lo que preparaste y vendiste al terminar el día."}
             </p>
           </div>
+          <WorkflowGuide onGo={navigate} />
           <div hidden={page !== "plan"}>
             <CompleteMenuPlanner
               key={version}
@@ -133,10 +162,22 @@ function App() {
               key={justSaved?.id ?? "list"}
               justSaved={justSaved}
               onNew={newPlan}
+              onChanged={() => setRevision((v) => v + 1)}
+              onPurchases={() => navigate("results")}
             />
           )}
           {page === "kitchen" && (
-            <Kitchen onChanged={() => setRevision((value) => value + 1)} />
+            <Kitchen
+              onChanged={() => setRevision((value) => value + 1)}
+              onPurchases={() => navigate("results")}
+            />
+          )}
+          {page === "results" && (
+            <BusinessResults
+              key={resultsKey}
+              onChanged={() => setRevision((v) => v + 1)}
+              onViewPlans={() => navigate("saved")}
+            />
           )}
           <footer className="flow-footer">
             MenúRentable AQP · Planificación para pequeños negocios de comida
@@ -146,4 +187,3 @@ function App() {
     </div>
   );
 }
-createRoot(document.getElementById("root")).render(<App />);

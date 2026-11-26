@@ -1,98 +1,92 @@
 # Menú Rentable AQP
 
-Aplicación web para planificar menús completos de pequeños negocios de comida en Arequipa. Un menú tiene caldo, segundo y refresco con un precio único. El backend calcula ingredientes, compras e ingresos estimados y guarda planes en PostgreSQL de Windows.
+Planificación y seguimiento diario para pequeños negocios de comida de Arequipa. Cada menú completo contiene caldo, segundo y refresco con un precio único. React presenta la interfaz; Python/FastAPI valida las entradas, calcula y guarda los datos en PostgreSQL de Windows.
 
-## Empezar
-
-1. Clonar el repositorio y abrir la raíz en VS Code.
-2. Seguir [Instalación en Windows](docs/instalacion/windows.md).
-3. Revisar [Coordinación del equipo](docs/equipo/entregables.md) para repartir documentación y código.
-
-## Organización
+## Organización del código
 
 ```text
-backend/
-  app/
-    api/routes/       Endpoints HTTP
-    schemas/          Validación de entradas
-    services/         Reglas y cálculos de negocio
-    repositories/     Consultas y transacciones PostgreSQL
-    db/               Conexión y tabla de compatibilidad
-  tests/              Pruebas de API, cálculo y persistencia
-frontend/
-  src/components/     Pantallas y componentes React
-  src/data/demo/      Datos legados de demostración
-  src/usePlanning.js  Acceso al planificador legado
-  src/styles/         Estilos
-  src/App.jsx         Navegación y pantallas legadas
-  package-lock.json   Dependencias reproducibles
-scripts/              Configuración, migración, catálogo y respaldo
-database/
-  migrations/         Esquema SQL versionado
-  catalogo_demo.json  Catálogo inicial de recetas e ingredientes
-docs/                 Instalación, modelo de datos y coordinación
+backend/app/
+  api/routes/          Endpoints pequeños por operación
+  schemas/             Clases Pydantic para validar entradas
+  services/            Un archivo por cálculo o exportador
+  repositories/        Clases de persistencia y transacciones SQL
+  integrations/sources/ Conectores MIDAGRI, Plaza Vea y ADRA
+  db/connection.py     Database: conexión configurada por DATABASE_URL
+backend/tests/         Pruebas unitarias y de API con PostgreSQL aislado
+frontend/src/
+  features/planning/   Menús, planificación y planes guardados
+  features/kitchen/    Recetas, despensa y fuentes externas
+  features/operations/ Compras, pérdidas, cierre y resultados
+  components/          Ayudas compartidas entre pantallas
+  services/api.js      Solicitudes al backend y formatos de presentación
+  styles/              Fuentes, estructura, pantallas y tema visual
+  App.jsx              Navegación actual
+  main.jsx             Punto de entrada
+scripts/               Conexión, migración, catálogo, respaldo y pruebas
+database/migrations/   Migraciones SQL versionadas
+docs/architecture/     Arquitectura y mapa de clases para sustentación
 ```
 
-## Recorrido actual
+[Mapa de clases, métodos, fórmulas y demostración](docs/architecture/defensa_backend.md). Esta guía corresponde al código actual. La documentación de cortes anteriores se retiró del repositorio activo.
 
-La navegación principal tiene tres destinos: Preparar mi plan, Mis planes y Mi cocina. Mi cocina reúne Recetas, Despensa y precios y Referencias externas.
+## Recorrido completo
 
-1. Menú: elegir una combinación guardada o crearla en el mismo paso con caldo, segundo, refresco y precio único.
-2. Cantidad: indicar fecha, menús esperados y presupuesto.
-3. Insumos: revisar existencias y precios con ayudas y unidades visibles.
-4. Resultado: revisar costos y compras, ajustar si hace falta y guardar.
-5. Mis planes: el guardado abre el resumen histórico y permite descargarlo con su lista de compras en CSV. Un plan anterior puede abrirse desde la misma lista.
+1. **Mi cocina:** crear y editar recetas; registrar ingredientes, existencias y cotizaciones manuales.
+2. **Preparar mi plan:** elegir o editar el menú (nombre, precio y recetas), ingresar fecha y cantidad, consultar sugerencia histórica si existen cierres, revisar insumos y calcular. Python agrega ingredientes compartidos, calcula faltantes, redondea compras y verifica presupuesto.
+3. **Mis planes:** consultar el plan histórico y descargar la lista de compras en CSV o PDF.
+4. **Compras y resultados:** elegir Registrar compra, Registrar pérdida o Ver resultados. En una compra se indica ingrediente, cantidad recibida y total pagado; Python calcula el precio unitario y actualiza el costo promedio ponderado.
+5. **Cierre del día:** desde el detalle del plan registrar preparados, vendidos, precio por menú y otros gastos sin ingredientes. Revisar el cierre antes de confirmar; la vista previa no guarda ni descuenta. Se valida stock y se descuenta el consumo de todos los menús preparados una sola vez, dentro de una transacción. Se guardan ingreso, sobrantes y costo real según receta.
+6. **Resultados:** comparar planificado y real por fechas, sumar cierres y descargar CSV o PDF generados por Python.
+7. **Referencias externas:** recuperar precio mayorista de pollo vivo de MIDAGRI, un producto de arroz del catálogo online de Plaza Vea e indicadores históricos de ADRA sobre rescate en Arequipa. Se guardan fechas y enlace de procedencia. Un error conserva la última lectura válida.
 
-La información del borrador se conserva al cambiar entre Preparar mi plan y Mis planes durante la sesión. Guardar o pulsar Preparar otro plan inicia un borrador nuevo. No se persiste el borrador al recargar la página.
+El prototipo antiguo, sus datos de demostración en JavaScript, el selector de versiones y la API legada se retiraron. Solo se carga la aplicación actual. No se borraron los registros históricos de la base local ni el almacenamiento previo del navegador. Una tabla `daily_plans` de instalaciones anteriores puede permanecer sin ser usada por la aplicación.
 
-Las compras se redondean a unidades de 1 kg, 1 L o 1 unidad. Los ingresos suponen vender todos los menús ingresados. El margen descuenta ingredientes; no personal, alquiler ni otros gastos. Guardar no descuenta inventario. Se permite un plan por fecha; aún no se edita ni reemplaza desde la interfaz.
+## Iniciar en Windows
 
-## Compatibilidad y pendientes
-
-La navegación de las pantallas anteriores fue retirada para evitar dos recorridos con datos distintos. El componente anterior se conserva en frontend/src/legacy/LegacyApp.jsx y sus datos locales no se borran. No se carga en la aplicación principal. Los catálogos del navegador y PostgreSQL todavía no se sincronizan.
-
-Mi cocina permite crear, editar y archivar recetas, agregar ingredientes y actualizar existencias y cotizaciones manuales en PostgreSQL. Los datos guardados se recuperan al planificar. Las recetas en uso por menús activos no pueden archivarse ni cambiar de categoría.
-
-Prioridades siguientes: fuentes privadas y ONG, registro de ventas por menú y pronóstico histórico. Ya existe un primer conector estatal de MIDAGRI. JasperReports no está integrado.
-
-Alcance local: un negocio, sin autenticación ni separación de usuarios. Cada compañero usa su propia base local; PostgreSQL de Windows es suficiente y no se requiere Docker.
-
-## API y pruebas
-
-Con el backend iniciado: http://127.0.0.1:8000/docs.
+Seguir [instalación](docs/instalacion/windows.md). Después de actualizar:
 
 ```powershell
-.venv\Scripts\python.exe -m pytest backend/tests -q
-npm --prefix frontend run build
+.venv\Scripts\python.exe -m pip install -r backend/requirements-lock.txt
+.venv\Scripts\python.exe scripts/migrar_base.py
+npm.cmd --prefix frontend ci
+npm.cmd run dev
 ```
 
-Sin TEST_DATABASE_URL se omiten las pruebas de integración. Para ejecutarlas, usar una base exclusiva de pruebas y definir esa variable. Las pruebas de menús crean esquemas temporales y los eliminan; la prueba legada utiliza y limpia un registro fijo, por lo que nunca debe apuntar a una base con datos del negocio.
+En una instalación nueva, ejecutar además `scripts/sembrar_catalogo.py` después de configurar la base. Las migraciones nuevas no borran los datos existentes.
 
-La compilación y las pruebas de API no sustituyen una revisión visual del navegador.
+Aplicación: http://127.0.0.1:5173. API documentada: http://127.0.0.1:8000/docs. Mantener abierta la terminal de VS Code y detener con Ctrl+C. Docker no es necesario.
 
-## Base de datos
+## Comprobar
 
-- [Diseño y diccionario](docs/database/modelo_datos.md).
-- [Migración inicial](database/migrations/001_relacional_menu.sql): 18 tablas de dominio y registro schema_migrations.
-- La tabla anterior daily_plans se conserva para compatibilidad y respaldo del desarrollo previo.
-- Las migraciones no contienen usuarios, contraseñas ni planes personales del equipo.
+```powershell
+.venv\Scripts\python.exe scripts/probar_backend.py
+npm.cmd run build
+```
 
-## Configuración privada
+El script utiliza una base separada `menu_rentable_backend_test` y esquemas temporales por prueba. No escribe compras ni cierres ficticios en el negocio. Las pruebas de conectores usan respuestas controladas; una consulta real adicional comprueba disponibilidad actual de las fuentes. Las pruebas no garantizan que una web externa mantenga siempre el mismo formato.
 
-Copiar o generar .env localmente. Nunca subir .env, contraseñas, logs, dependencias instaladas ni respaldos con datos personales. .env.example contiene solo marcadores. Las credenciales con caracteres especiales deben codificarse en la URL; scripts/configurar_conexion.py lo hace automáticamente.
+## Alcance y reglas
 
+- Un negocio local; no hay autenticación ni separación de usuarios.
+- Un plan por fecha. Puede cancelarse antes del cierre; no se edita ni se reemplaza una fecha histórica.
+- Guardar un plan no confirma compras ni descuenta ingredientes. No reemplaza el inventario real existente; solo inicializa ingredientes sin inventario a partir de sus existencias declaradas.
+- Cerrar descuenta según la receta histórica y los menús preparados; no representa pesajes reales independientes de cada ingrediente.
+- Compra estimada en presentaciones de 1 kg, 1 L o 1 unidad. El ingreso estimado supone vender toda la cantidad indicada.
+- El reporte descuenta ingredientes de la producción y gastos adicionales declarados. No es utilidad contable neta. Las mermas de ingredientes quedan en el historial de inventario y no se descuentan automáticamente del margen del reporte.
+- Pronóstico: promedio de hasta ocho cierres anteriores del mismo día de semana, o de últimos cierres si no hay comparables. Sin historia se solicita cantidad inicial. Los agotamientos requieren revisar la sugerencia.
+- MIDAGRI: pollo vivo referencial, no pollo eviscerado. Colección configurada para 2026. Plaza Vea: precio online sin confirmar entrega en Arequipa. ADRA: datos históricos de una publicación sobre 2025, no disponibilidad de donaciones.
+- Caché de seis horas y mínimo un minuto entre intentos por fuente. Las fuentes no cambian automáticamente inventario ni cotizaciones de compra.
+- Exportación CSV y PDF. Los PDF se generan en Python con ReportLab y fuentes incluidas en la dependencia.
+- `.env`, contraseñas, respaldos, logs y dependencias instaladas no se versionan.
 
-## Primera fuente externa automática
+## Ayudas para llenar los datos
 
-Mi cocina incluye Referencias externas. El conector de MIDAGRI descubre el boletín diario más reciente disponible de la colección de aves de 2026, descarga el PDF oficial y extrae el último precio mayorista de pollo vivo en Arequipa. Diferencia fecha del precio, fecha del boletín y momento de recuperación. No cambia inventario ni cotizaciones de compra: pollo vivo no es equivalente a pollo eviscerado.
+La aplicación incluye ¿Qué lleno y en qué orden?, ejemplos visibles y ayudas por campo. Despensa es un conteo que reemplaza existencias; Registrar compra suma lo recibido. No registrar la misma compra por ambos caminos. El cierre se realiza al terminar de vender, muestra los ingredientes que se descontarán y señala faltantes antes de confirmar. No se escribe el total de ventas: Python lo calcula con menús vendidos y precio por menú.
 
-Aplicar scripts/migrar_base.py después de actualizar para registrar la fuente (002_fuente_midagri). Instalar backend/requirements-lock.txt para disponer de pypdf. La lectura se inicia al abrir la sección, con reutilización de un éxito de las últimas seis horas. Consultar MIDAGRI ahora solicita nueva lectura, respetando un minuto entre intentos. Un fallo queda registrado y conserva el último dato válido.
+## Limpieza y mantenimiento
 
-La colección inicial cubre 2026 y requiere actualización del conector al cambiar de colección anual. El parser falla de forma explícita si cambia la tabla, en vez de guardar precios supuestos. Pruebas de extracción, fechas, caché y preservación ante fallo usan datos controlados y no dependen de la red. La comprobación real se hizo adicionalmente contra MIDAGRI.
+Cada cálculo y exportador tiene su archivo en backend/app/services. Los conectores de fuentes están separados por institución. Se retiraron estilos y carpetas del prototipo, imports sin uso, cachés de trabajo y documentos desactualizados del árbol activo. Se conservan paquetes Python, modelos de validación, pruebas, migraciones, catálogo inicial y archivos privados necesarios para ejecutar la aplicación.
 
-Fuente estatal implementada en esta etapa. Fuentes privadas y ONG siguen pendientes. Tampoco se aplica automáticamente el precio referencial a los ingredientes ni al plan.
+## Tema visual
 
-
-## Guía del código para el equipo
-
-La guía editable está en docs/guia/Guia_del_codigo.docx y la versión de consulta en docs/guia/Guia_del_codigo.pdf. Explica carpetas, componentes, clases de validación, servicios, repositorios, tablas, MIDAGRI, pruebas e instalación.
+La interfaz usa Archivo Variable y Michroma con fuentes locales. La paleta de grafito, blanco cálido y terracota se centraliza en frontend/src/styles/theme.css. Ver docs/architecture/diseno_visual.md para fuentes, colores y organización de estilos.

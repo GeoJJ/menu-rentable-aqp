@@ -1,0 +1,16 @@
+/* Fuentes locales con licencia SIL OFL; créditos en public/fonts. */
+@font-face {
+  font-family: "Archivo";
+  src: url("/fonts/archivo-latin-variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Michroma";
+  src: url("/fonts/michroma-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}

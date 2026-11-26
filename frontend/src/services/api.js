@@ -23,6 +23,25 @@ export async function api(path, { body, signal, method } = {}) {
     );
   return data;
 }
+export async function downloadFile(path, filename) {
+  const response = await fetch(`${apiBase}/${path}`);
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new Error(
+      typeof data?.detail === "string"
+        ? data.detail
+        : "No se pudo generar el reporte. Inténtalo nuevamente.",
+    );
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 export const money = (value) =>
   new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" }).format(
     value,

@@ -1,35 +1,27 @@
-# Corte técnico del avance del 20 de noviembre de 2026
+# Estado del proyecto — 26 de noviembre de 2026
 
-## Funcionamiento disponible
+## Implementado
 
-- Mi cocina: crear, editar y archivar recetas, agregar ingredientes y guardar existencias y precios de compra con proveedor y ubicación.
-- Preparar mi plan: elegir o crear un menú de caldo, segundo y refresco con precio único; ingresar cantidad, presupuesto e insumos; revisar compras y guardar.
-- Mis planes: consultar el detalle histórico y descargar resumen y compras en CSV.
-- Referencias externas: consulta automática de MIDAGRI al abrir la sección; extracción de pollo vivo mayorista de Arequipa del boletín PDF; fechas y enlace verificable; preservación ante errores.
+Backend organizado por clases de cálculo, persistencia y conectores. Planificación de menú con precio único; recetas, despensa y precios; histórico de planes; compras y mermas; cierre de ventas con consumo de inventario transaccional; cancelación de planes pendientes; sugerencia desde cierres anteriores; reporte de resultados por fechas y CSV generado en Python. Interfaz actual conectada a esas operaciones. Edición de nombre, precio y recetas del menú sin reescribir planes históricos; PDF de resultados por fechas y PDF del plan con lista de compras. Prototipo anterior y API legada retirados.
 
-## Verificación ejecutada
+Fuentes: MIDAGRI (precio de pollo vivo), Plaza Vea (producto y precio online de arroz) y ADRA (indicadores históricos de rescate de alimentos en Arequipa). Las tres se comprobaron contra sus sitios y guardaron registros reales. Las fuentes no reemplazan el inventario ni garantizan cobertura comercial.
 
-18 pruebas de backend aprobadas con PostgreSQL en esquemas temporales; compilación Vite aprobada; revisión del recorrido en Chrome de escritorio y móvil, sin errores de JavaScript ni desbordamiento horizontal en las vistas revisadas. La navegación posterior al guardado se comprobó en el navegador con respuesta simulada para no crear planes de prueba en el negocio; el guardado real se comprobó en las pruebas de integración. Además se verificó que el plan real permanece en PostgreSQL.
+## Validación
 
-La recuperación real de MIDAGRI se comprobó contra su web y PDF: boletín del 20 de noviembre, precio de pollo vivo del 19 de noviembre. El valor mostrado en esta lectura fue S/6.66 por kg; una nueva consulta puede devolver otro valor o documento. No es un precio de pollo eviscerado ni una oferta garantizada del proveedor.
+Pruebas unitarias y de integración en una base separada, incluyendo rollback ante falta de stock, protección contra cierre repetido, costos promedio, reportes, pronóstico sin datos futuros y conservación de referencias ante fallos. Compilación de frontend y comprobación de navegación de escritorio y móvil. Resultado final: 32 pruebas aprobadas en PostgreSQL aislado, compilación Vite aprobada y recorrido real de compra → cierre → reporte aprobado desde el navegador contra una base de pruebas. Se comprobó doble cierre concurrente: solo uno aplica el consumo. También se probaron edición de menús, validaciones sin cambios parciales, conservación de precios y recetas históricos, PDF sin cierres, PDF con múltiples páginas y descargas desde el navegador. Los conteos de recetas, ingredientes, inventario y planes del negocio coinciden con el respaldo previo; no se registraron ventas ficticias en el negocio.
 
-## Límites actuales
+## Límites
 
-La cantidad esperada la ingresa el usuario y se supone que venderá todos esos menús. El margen solo descuenta ingredientes. Las compras se redondean a kg, L o unidades completos. Guardar un plan no descuenta inventario; los datos de existencias declarados se guardan. Existe un plan por fecha y aún no se edita desde la interfaz.
+Aplicación local para un negocio, sin login. Un plan por fecha; cancelación sin reescritura del historial. Consumo calculado por receta histórica y producción declarada. Margen de cierres con ingredientes y gastos declarados, sin sumar automáticamente mermas de ingredientes. Reporte CSV y PDF generados en Python con ReportLab. Promedio histórico simple, no predicción de demanda no atendida. Referencias externas sujetas a formato y disponibilidad; MIDAGRI usa colección anual 2026.
 
-Pendientes: fuentes privadas y ONG, cierre diario y ventas reales, sobrantes reales, pronóstico desde historial y reportes de resultados. No hay autenticación, gestión de varios negocios, facturación ni JasperReports. El componente legado no se carga en la navegación nueva y no debe utilizarse como evidencia de funciones nuevas terminadas.
+## Para sustentar
 
-## Presentación del avance
+Usar docs/architecture/defensa_backend.md para localizar clase, método y fórmula. Los documentos PDF y Word de cortes anteriores no reflejan todavía esta reorganización.
 
-1. Abrir una receta y mostrar sus ingredientes y rendimiento.
-2. Mostrar una existencia y cotización guardadas.
-3. Crear o elegir un menú completo y recorrer sus cuatro pasos.
-4. Consultar un plan ya guardado y descargar CSV.
-5. Abrir Mi cocina y Referencias externas; mostrar las tres fechas y el PDF de MIDAGRI.
-6. Explicar la persistencia y las limitaciones, especialmente que solo hay una fuente estatal integrada.
+## Claridad de formularios
 
-## Instalación y base de datos
+Compras, pérdidas y resultados se presentan por separado. Los formularios explican qué llenar y con qué unidad. Compras recibe cantidad y total pagado; el precio unitario se calcula en Python. El cierre tiene revisión previa sin escritura y confirma después, con faltantes por ingrediente y revalidación del stock. Se añadieron ejemplos de recetas, conteos, planificación y gastos para evitar sumar dos veces una compra o descontar como pérdida lo que ya se consumió al cerrar. La navegación móvil muestra los cuatro destinos completos.
 
-Seguir docs/instalacion/windows.md. Para una instalación limpia usar migraciones y catálogo. Para reproducir exactamente el avance con datos, restaurar el respaldo SQL en una base nueva y configurar esa conexión. No mezclar ambos procedimientos sobre la misma base sin revisar primero su estado.
+## Organización y limpieza
 
-Este archivo es una guía técnica del corte; no reemplaza el informe académico ni sus diagramas y anexos.
+Servicios de cálculo y exportadores separados en archivos por responsabilidad. Conectores privados y ONG separados; descarga y excepción de lectura compartidas. Pantallas agrupadas en features/planning, features/kitchen y features/operations. Se retiraron 207 selectores CSS sin uso, imports sobrantes y carpetas del prototipo; las guías antiguas y archivos de pruebas se archivaron fuera del repositorio activo. No quedaron módulos JavaScript huérfanos ni enlaces Markdown locales rotos. La instalación desde migraciones y la carga repetida del catálogo inicial se comprobaron en una base de pruebas: 32 ingredientes, 26 recetas y cuatro migraciones. Las capturas comparadas de escritorio y móvil conservaron exactamente la apariencia en las vistas revisadas.

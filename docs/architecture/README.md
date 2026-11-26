@@ -1,17 +1,48 @@
-# Arquitectura implementada
+# Arquitectura actual
 
-React presenta un recorrido principal en cuatro pasos: Menú, Cantidad, Insumos y Resultado. La creación de combinaciones está integrada en el primer paso. El guardado abre Mis planes, donde se consultan capturas históricas y se descarga el CSV. App.jsx contiene el marco y la navegación; la versión anterior se conserva fuera del recorrido principal en legacy/LegacyApp.jsx.
+El backend separa cuatro responsabilidades: las rutas HTTP reciben las solicitudes; las clases Pydantic validan; las clases de servicios calculan; las clases de repositorios consultan y persisten en PostgreSQL. Los conectores externos recuperan y validan información de sus fuentes.
 
-Flujo nuevo:
+La planificación usa MenuPlanningCalculator; el cierre y el inventario usan DayClosingCalculator e InventoryCalculator; el pronóstico usa DemandForecaster y los totales ReportCalculator. Cada operación conserva su transacción en el repositorio correspondiente.
 
-1. components/CompleteMenuPlanner.jsx dirige los cuatro pasos y usa MenuOffers.jsx para crear combinaciones. services/api.js centraliza solicitudes y formatos. SavedMenuPlans.jsx consulta los planes y su detalle, y MenuPlanSummary.jsx comparte el resumen entre resultado e historial.
-2. api/routes separa menus.py, menu_plans.py, catalog.py y sources.py. Los modelos de schemas validan las entradas; api/errors.py traduce errores comunes.
-3. repositories/menus.py administra catálogo y ofertas; repositories/menu_plans.py consulta datos y guarda planes dentro de una transacción.
-4. services/menu_planning.py calcula ingredientes, compras e ingresos con Decimal sin realizar consultas SQL.
-5. db/plans.py proporciona la conexión a PostgreSQL de Windows. También conserva el acceso a daily_plans de la versión legada.
+[Mapa completo de clases, métodos, fórmulas y guion de demostración](defensa_backend.md).
 
-El planificador anterior usa api/routes/planning.py y services/planning.py; calcula por plato y está advertido en pantalla. Se conserva en código como legado, sin cargarlo desde la navegación principal. Los datos locales previos permanecen intactos.
+La versión antigua de React y su API fueron retiradas. Se conserva la información histórica ya existente en la base, sin rutas que sigan usando la tabla daily_plans.
 
-Las migraciones viven en database/migrations y el catálogo inicial en database/catalogo_demo.json. Los scripts de la raíz scripts/ aplican la configuración y las migraciones. La información de autenticación se lee de .env local, excluido de Git.
+## Archivos principales
 
-integrations/sources/midagri.py descubre y lee el boletín oficial. services/source_refresh.py controla caché y actualización; repositories/sources.py guarda intentos y datos válidos. La interfaz ExternalSources.jsx consulta estos endpoints. Un fallo conserva la última lectura correcta. No hay conectores privados ni de ONG todavía.
+```text
+backend/app/
+  api/routes/          Solicitudes HTTP, sin fórmulas de negocio
+  schemas/             Datos requeridos y restricciones de Pydantic
+  services/
+    menu_planning.py   MenuPlanningCalculator: porciones y compras estimadas
+    inventory.py       InventoryCalculator: precio unitario y costo promedio
+    day_closing.py     DayClosingCalculator: producción y resultado diario
+    demand_forecast.py DemandForecaster: sugerencia por ventas anteriores
+    reports.py         ReportCalculator: resumen del periodo
+    csv_reports.py     ReportCSVExporter: archivo CSV
+    pdf_reports.py     ReportPDFExporter: documentos PDF
+    source_refresh.py  SourceRefreshService: consultas externas y caché
+  repositories/        SQL y transacciones; OperationsRepository conserva junto
+                       el cierre y sus movimientos para asegurar atomicidad
+  integrations/sources/
+    midagri.py         Boletín oficial de aves
+    plazavea.py        Catálogo privado de arroz
+    adra.py            Indicadores publicados por la ONG
+    http.py           Descarga compartida de páginas configuradas
+    errors.py         SourceError: fallos recuperables de lectura
+  db/connection.py     Database: conexión a PostgreSQL
+
+frontend/src/
+  features/planning/   Menús, planificación y consulta de planes
+  features/kitchen/    Recetas, despensa y referencias externas
+  features/operations/ Compras, pérdidas, cierre y resultados
+  components/          FormHelp: ayudas reutilizables
+  services/api.js      Peticiones HTTP, descargas y formatos
+  styles/              fonts.css, base.css, workspace.css y theme.css
+  ../public/fonts/     Fuentes locales y sus licencias
+```
+
+Las rutas y las ayudas pequeñas pueden ser funciones: no se crean clases vacías para envolverlas. Cada clase de cálculo tiene su responsabilidad, y sus resultados se verifican en backend/tests. Los paquetes Python y los modelos con campos de validación son necesarios aunque no tengan métodos propios.
+
+[Tipografía, colores y archivos del tema visual](diseno_visual.md).

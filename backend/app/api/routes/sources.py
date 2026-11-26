@@ -2,16 +2,22 @@ from fastapi import APIRouter
 
 from app.api.errors import database_call
 from app.repositories import sources
-from app.services.source_refresh import refresh
+from app.services.source_refresh import SourceRefreshService
 
 router = APIRouter()
 
 
+@router.get("/sources")
+def source_list():
+    return database_call(sources.SourceRepository.list_sources)
+
+
+@router.post("/sources/{key}/refresh")
+def refresh_source(key: str, force: bool = False):
+    key = sources.KEY if key == "midagri" else key
+    return database_call(SourceRefreshService.refresh, force, key)
+
+
 @router.get("/sources/midagri")
 def source_status():
-    return database_call(sources.status)
-
-
-@router.post("/sources/midagri/refresh")
-def source_refresh(force: bool = False):
-    return database_call(refresh, force)
+    return database_call(sources.SourceRepository.status)

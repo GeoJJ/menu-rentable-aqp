@@ -313,3 +313,17 @@ Antes de implementar se actualiza la API, las pruebas, la selección de ofertas 
 Las fuentes de ONG aportan registros informativos verificables. Este modelo no promete recepción de excedentes ni gestiona donaciones. La geografía y disponibilidad real de cada fuente deben comprobarse al implementar su conector.
 
 Este es el diseño inicial para el alcance acordado de un negocio. El modelo final se ajustará a la evidencia del levantamiento y al comportamiento validado con el negocio.
+
+## Ampliación del 26 de noviembre de 2026
+
+La migración 003_operacion_diaria agrega:
+
+- planes_diarios.estado: planificado, cerrado o cancelado; motivo_cancelacion conserva la explicación.
+- registros_diarios.plan_id: relación única con el plan que se cierra.
+- registros_diarios.costo_ingredientes_real y gastos_adicionales: importes históricos del cierre.
+- movimientos_inventario: ingrediente, plan opcional, tipo (compra, consumo, merma o ajuste), cantidad con signo, costo unitario, saldo, motivo y fecha. Un índice único evita repetir el consumo del mismo ingrediente y plan.
+- Inventario con ocho decimales para reducir pérdida de precisión en consumos escalados y costos promedio.
+
+La migración 004_fuentes_complementarias registra los conectores plazavea (privada) y adra (ong). Se reutilizan fuentes_externas, consultas_fuentes y registros_externos; los productos externos no reemplazan automáticamente cotizaciones o inventario.
+
+Con estas migraciones hay 19 tablas de dominio y schema_migrations en una instalación limpia. Las instalaciones previas pueden conservar daily_plans sin uso. Las capturas de planes anteriores no se eliminan ni se reescriben al cerrar.

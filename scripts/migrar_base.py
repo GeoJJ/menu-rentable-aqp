@@ -5,7 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
-from app.db.plans import connect
+from app.db.connection import connect
 from dotenv import load_dotenv
 
 
@@ -15,9 +15,6 @@ def main():
         connection.autocommit = True
         connection.execute("SELECT pg_advisory_lock(27112026)")
         try:
-            connection.execute(
-                (ROOT / "backend/app/db/schema.sql").read_text(encoding="utf-8-sig")
-            )
             connection.execute(
                 "CREATE TABLE IF NOT EXISTS schema_migrations (version text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())"
             )
