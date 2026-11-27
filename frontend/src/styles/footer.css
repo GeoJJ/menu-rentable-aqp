@@ -3,6 +3,7 @@
   padding: 0;
   width: 100%;
   background: var(--card-background);
+  background-image: var(--card-gradient-large);
   color: var(--card-text);
   border: 0;
   border-top: 1px solid var(--card-line);

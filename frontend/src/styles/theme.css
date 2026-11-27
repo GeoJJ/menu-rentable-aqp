@@ -1,6 +1,6 @@
 /* Paleta de la aplicación: sillar cálido, grafito y terracota. */
 :root {
-  --font-body: "Archivo", "Segoe UI", sans-serif;
+  --font-body: "ShieldFont Optik", "Archivo", "Segoe UI", sans-serif;
   --font-brand: "Michroma", "Archivo", sans-serif;
   --background: #ede3d4;
   --surface: #fffaf2;
@@ -25,6 +25,15 @@
   --warning-bg: #fff5ed;
   --warning-line: #eac9b1;
   --card-background: #1b2426;
+  --card-gradient: linear-gradient(
+    135deg,
+    #30433e 0%,
+    #253633 45%,
+    #1b2426 100%
+  );
+  --card-gradient-large:
+    radial-gradient(ellipse at 0% 0%, #9b60402e, transparent 60%),
+    linear-gradient(120deg, #2d433d 0%, #20302f 55%, #192426 100%);
   --card-text: #fff8ed;
   --card-muted: #cbd3ce;
   --card-line: #46534b;
@@ -32,6 +41,7 @@
   color-scheme: light;
 }
 body {
+  font-synthesis: weight;
   -webkit-font-smoothing: antialiased;
 }
 h1,

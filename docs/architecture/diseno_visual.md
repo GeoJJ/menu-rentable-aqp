@@ -17,7 +17,11 @@ Los estilos se cargan en ese orden. El tema adapta la presentación de los compo
 
 ## Fuentes
 
-Archivo Variable se usa en títulos, contenido y cifras. Los encabezados principales tienen peso 800 y mayúsculas; los campos conservan texto normal para facilitar la lectura. Michroma se reserva para la marca. Los archivos incluyen los caracteres latinos necesarios para español y se sirven desde la propia aplicación, sin consultas a Google Fonts al abrirla.
+La interfaz usa Optik neutral de `@shieldfont/font` 0.3.4, la tipografía de SHIELD(FONT). El archivo `optik-n` conserva el texto original: no se activa el codificador ni la sustitución de palabras. Sus archivos se sirven desde el paquete mediante Vite, sin depender de un CDN durante el uso. Optik pertenece a Playtype y se distribuye dentro de ShieldFont según el permiso descrito en el NOTICE del paquete; no se trata de una fuente SIL OFL. Incluye caracteres españoles; el corte neutral es regular y el navegador sintetiza los pesos superiores. Archivo queda como respaldo y continúa en los PDF; el logo aprobado permanece igual.
+
+## Animaciones
+
+`frontend/src/hooks/usePageMotion.js` observa la entrada de secciones y tarjetas al área visible, también al cargar contenido. Cada elemento aparece una vez por visita a la sección. `frontend/src/styles/motion.css` controla las entradas, el movimiento de ilustraciones al interactuar, los diálogos y el menú móvil. No agrega librerías de animación ni modifica los cálculos. La preferencia `prefers-reduced-motion` desactiva los efectos y el desplazamiento suave, incluso si se cambia con la página abierta. Los elementos con foco permanecen visibles.
 
 ## Colores principales
 

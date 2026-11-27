@@ -1,0 +1,102 @@
+/* Motion supports orientation without delaying forms or hiding focused controls. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+  [data-motion] {
+    transition:
+      opacity 520ms ease,
+      transform 520ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  [data-motion="pending"] {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  [data-motion="visible"],
+  [data-motion]:focus-within {
+    opacity: 1;
+    transform: none;
+  }
+  .home-hero-copy > * {
+    animation: copy-arrives 650ms both;
+  }
+  .home-hero-copy > :nth-child(2) {
+    animation-delay: 70ms;
+  }
+  .home-hero-copy > :nth-child(3) {
+    animation-delay: 140ms;
+  }
+  .home-hero-copy > :nth-child(4) {
+    animation-delay: 210ms;
+  }
+  .home-step img {
+    transition: transform 420ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .home-step-action span,
+  .home-actions .primary span {
+    transition: transform 220ms ease;
+  }
+  .home-step:focus-within img {
+    transform: translateY(-4px);
+  }
+  .home-step-action:hover span,
+  .home-actions .primary:hover span {
+    transform: translate(2px, -2px);
+  }
+  .site-navigation.is-open {
+    animation: menu-arrives 180ms ease-out;
+  }
+  dialog[open] {
+    animation: copy-arrives 220ms ease-out;
+  }
+  dialog[open]::backdrop {
+    animation: backdrop-arrives 180ms ease-out;
+  }
+  .notice,
+  .flow-error {
+    animation: copy-arrives 220ms ease-out;
+  }
+  @media (hover: hover) {
+    .home-step:hover img {
+      transform: translateY(-4px) scale(1.025);
+    }
+  }
+}
+@keyframes copy-arrives {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes menu-arrives {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes backdrop-arrives {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  [data-motion] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

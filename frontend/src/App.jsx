@@ -8,6 +8,7 @@ import { api } from "./services/api.js";
 import { Home } from "./features/home/Home.jsx";
 import { SiteHeader } from "./components/SiteHeader.jsx";
 import { SiteFooter } from "./components/SiteFooter.jsx";
+import { usePageMotion } from "./hooks/usePageMotion.js";
 import "./styles/fonts.css";
 import "./styles/base.css";
 import "./styles/workspace.css";
@@ -18,6 +19,7 @@ import "./styles/navigation.css";
 import "./styles/cards.css";
 import "./styles/footer.css";
 import "./styles/buttons.css";
+import "./styles/motion.css";
 export default function App() {
   const [revision, setRevision] = useState(0);
   const [resultsKey, setResultsKey] = useState(0);
@@ -25,12 +27,13 @@ export default function App() {
     setPage(next);
     if (next === "saved") setJustSaved(null);
     if (next === "results") setResultsKey((v) => v + 1);
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
   const [page, setPage] = useState("home"),
     [version, setVersion] = useState(0),
     [justSaved, setJustSaved] = useState(null),
     [status, setStatus] = useState("checking");
+  usePageMotion(page);
   useEffect(() => {
     const controller = new AbortController();
     api("health", { signal: controller.signal })
@@ -44,13 +47,13 @@ export default function App() {
     setJustSaved(null);
     setVersion((v) => v + 1);
     setPage("plan");
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
   function saved(plan) {
     setJustSaved(plan);
     setVersion((v) => v + 1);
     setPage("saved");
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "instant" });
   }
   return (
     <div
