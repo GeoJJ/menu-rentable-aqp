@@ -10,33 +10,24 @@
   border-radius: 0;
 }
 .footer-inner {
-  max-width: 1440px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 38px 36px 0;
-}
-.workspace-layout .footer-inner {
-  max-width: 1280px;
+  padding: 28px 36px 0;
+  text-align: center;
 }
 .footer-contact-band {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 30px;
-  padding-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding-bottom: 24px;
   border-bottom: 1px solid var(--card-line);
-}
-.footer-contact-band .flow-eyebrow {
-  color: var(--card-accent);
 }
 .footer-contact-band h2 {
   color: var(--card-text);
-  font-size: 29px;
+  font-size: clamp(22px, 3vw, 27px);
   line-height: 1.2;
-  margin: 12px 0;
-}
-.footer-contact-band p {
-  color: var(--card-muted);
-  font-size: 13px;
   margin: 0;
 }
 .whatsapp-button {
@@ -60,12 +51,13 @@
 }
 .footer-columns {
   display: grid;
-  grid-template-columns: 1.1fr 1fr 1.2fr;
-  gap: 45px;
-  padding: 34px 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  padding: 25px 0;
 }
 .footer-logo {
   display: block;
+  margin: 0 auto;
   padding: 0 8px;
   width: 205px;
   height: 65px;
@@ -83,7 +75,8 @@
   color: var(--card-muted);
   font-size: 13px;
   line-height: 1.9;
-  margin: 16px 0;
+  max-width: 27ch;
+  margin: 12px auto 8px;
 }
 .footer-place {
   color: var(--card-accent);
@@ -93,26 +86,26 @@
 .footer-columns nav {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
 }
 .footer-columns h3 {
   font-size: 14px;
   color: var(--card-text);
-  margin: 0 0 15px;
+  margin: 0 0 7px;
   letter-spacing: 0;
 }
 .footer-columns nav a,
 .footer-columns nav button {
   display: block;
-  padding: 8px 0;
+  padding: 6px 0;
   color: var(--card-muted);
   font-size: 13px;
   line-height: 1.6;
   background: none;
   border: 0;
   text-decoration: none;
-  text-align: left;
-  min-height: 36px;
+  text-align: center;
+  min-height: 32px;
 }
 .footer-columns nav a:hover,
 .footer-columns nav button:hover {
@@ -122,23 +115,28 @@
 }
 .footer-bottom {
   display: flex;
-  justify-content: space-between;
-  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 24px;
   align-items: center;
   border-top: 1px solid var(--card-line);
-  padding: 18px 0;
-  color: var(--card-muted);
-  font-size: 10px;
-  line-height: 1.7;
+  padding: 7px 0;
 }
-.footer-bottom button {
+.footer-bottom :is(a, button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   color: var(--card-text);
   background: none;
   border: 0;
   font-size: 12px;
-  padding: 10px 0;
-  min-height: 40px;
+  padding: 8px 0;
+  min-height: 44px;
   white-space: nowrap;
+  text-decoration: none;
+}
+.footer-bottom :is(a, button):hover {
+  color: var(--card-accent);
 }
 .contact-footer :is(a, button):focus-visible {
   outline-color: var(--card-accent);
@@ -220,19 +218,6 @@
   font-size: 10px;
   line-height: 1.7;
 }
-@media (max-width: 1000px) {
-  .footer-contact-band {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .footer-columns {
-    gap: 25px;
-    grid-template-columns: 1fr 1fr;
-  }
-  .footer-brand-column {
-    grid-column: 1/-1;
-  }
-}
 @media (max-width: 680px) {
   .contact-footer {
     padding: 0;
@@ -241,28 +226,22 @@
   .footer-inner {
     padding: 28px 20px 0;
   }
-  .footer-contact-band h2 {
-    font-size: 25px;
-  }
   .whatsapp-button {
-    width: 100%;
     font-size: 12px;
-    padding: 14px 10px;
+    padding: 12px 16px;
     gap: 8px;
   }
   .footer-columns {
-    grid-template-columns: 1fr;
-    gap: 25px;
-    padding: 28px 0;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 12px;
+    padding: 22px 0;
+  }
+  .footer-brand-column {
+    grid-column: 1 / -1;
   }
   .footer-columns nav a,
   .footer-columns nav button {
     min-height: 44px;
-  }
-  .footer-bottom {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
   }
   .contact-dialog {
     padding: 21px;

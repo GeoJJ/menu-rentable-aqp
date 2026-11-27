@@ -132,11 +132,7 @@ export function SiteFooter({ page, onGo }) {
         <div className="footer-inner">
           <div className="footer-contact-band">
             <div>
-              <span className="flow-eyebrow">CONVERSEMOS SOBRE TU COCINA</span>
               <h2>¿Una duda antes de empezar?</h2>
-              <p>
-                Escríbenos para consultas, comentarios o ayuda con el proyecto.
-              </p>
             </div>
             <a
               className="whatsapp-button"
@@ -164,17 +160,12 @@ export function SiteFooter({ page, onGo }) {
                 />
               </button>
               <p>
-                Planifica tus porciones.
-                <br />
-                Organiza tus compras.
-                <br />
-                Conoce el resultado de tu día.
+                Planifica tus menús, organiza tus compras y revisa tus resultados.
               </p>
               <span className="footer-place">AREQUIPA, PERÚ</span>
             </div>
             <nav aria-label="Explorar Menú Rentable">
-              <h3>Tu espacio de trabajo</h3>
-              <button onClick={() => onGo("home")}>Inicio</button>
+              <h3>Herramientas</h3>
               <button onClick={() => onGo("plan")}>Preparar mi plan</button>
               <button onClick={() => onGo("saved")}>Mis planes</button>
               <button onClick={() => onGo("kitchen")}>Mi cocina</button>
@@ -183,7 +174,7 @@ export function SiteFooter({ page, onGo }) {
               </button>
             </nav>
             <nav aria-label="Ayuda y contacto">
-              <h3>Estamos para ayudarte</h3>
+              <h3>Ayuda</h3>
               {page === "home" && (
                 <>
                   <a href="#como-funciona">Cómo funciona</a>
@@ -191,29 +182,19 @@ export function SiteFooter({ page, onGo }) {
                   <a href="#preguntas-frecuentes">Preguntas frecuentes</a>
                 </>
               )}
-              <a
-                href={whatsapp("Hola, necesito ayuda con Menú Rentable.")}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                WhatsApp: 934 416 482 ↗
-              </a>
               <button ref={opener} onClick={() => setContactOpen(true)}>
                 Reclamos y sugerencias
               </button>
-              <a
-                href="https://github.com/GeoJJ/menu-rentable-aqp"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Código del proyecto ↗
-              </a>
             </nav>
           </div>
           <div className="footer-bottom">
-            <span>
-              Menú Rentable · Proyecto académico de Lenguajes de Programación
-            </span>
+            <a
+              href="https://github.com/GeoJJ/menu-rentable-aqp"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Código del proyecto <span aria-hidden="true">↗</span>
+            </a>
             <button
               onClick={() =>
                 window.scrollTo({
