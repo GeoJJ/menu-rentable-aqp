@@ -23,11 +23,17 @@ import "./styles/motion.css";
 export default function App() {
   const [revision, setRevision] = useState(0);
   const [resultsKey, setResultsKey] = useState(0);
+  const [consultingSources, setConsultingSources] = useState(false);
   function navigate(next) {
+    setConsultingSources(false);
     setPage(next);
     if (next === "saved") setJustSaved(null);
     if (next === "results") setResultsKey((v) => v + 1);
     window.scrollTo({ top: 0, behavior: "instant" });
+  }
+  function consultSources() {
+    navigate("kitchen");
+    setConsultingSources(true);
   }
   const [page, setPage] = useState("home"),
     [version, setVersion] = useState(0),
@@ -115,6 +121,7 @@ export default function App() {
             <CompleteMenuPlanner
               key={version}
               onSaved={saved}
+              onReferences={consultSources}
               revision={revision}
             />
           </div>
@@ -129,6 +136,8 @@ export default function App() {
           )}
           {page === "kitchen" && (
             <Kitchen
+              initialTab={consultingSources ? "sources" : "recipes"}
+              onBackToPlan={consultingSources ? () => navigate("plan") : undefined}
               onChanged={() => setRevision((value) => value + 1)}
               onPurchases={() => navigate("results")}
             />

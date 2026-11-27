@@ -464,3 +464,15 @@
     flex-shrink: 0;
   }
 }
+.planning-insumos-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  margin-block: 0 16px;
+}
+.planning-insumos-intro p {
+  flex: 1 1 21rem;
+  margin: 0;
+}

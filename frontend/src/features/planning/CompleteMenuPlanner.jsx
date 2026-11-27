@@ -12,6 +12,7 @@ export function CompleteMenuPlanner({
   revision = 0,
   editPlan = null,
   onCancel,
+  onReferences,
 }) {
   const [step, setStep] = useState(0),
     [menus, setMenus] = useState([]),
@@ -459,10 +460,17 @@ export function CompleteMenuPlanner({
         {step === 2 && (
           <form onSubmit={calculate}>
             <fieldset disabled={busy}>
-              <p>
-                Para {form.cantidad} menús de {details?.menu.nombre}. Indica
-                cuánto tienes en tu cocina y el precio por kilo, litro o unidad.
-              </p>
+              <div className="planning-insumos-intro">
+                <p>
+                  Para {form.cantidad} menús de {details?.menu.nombre}. Indica
+                  cuánto tienes en tu cocina y el precio por kilo, litro o unidad.
+                </p>
+                {onReferences && (
+                  <button type="button" className="primary" onClick={onReferences}>
+                    Referencias externas
+                  </button>
+                )}
+              </div>
               <details className="flow-help">
                 <summary>¿Cómo lleno estos datos?</summary>
                 <p>

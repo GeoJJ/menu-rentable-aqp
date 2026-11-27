@@ -11,8 +11,13 @@ const blankRecipe = () => ({
   preparacion: "",
   ingredientes: [],
 });
-export function Kitchen({ onChanged, onPurchases = () => {} }) {
-  const [tab, setTab] = useState("recipes"),
+export function Kitchen({
+  onChanged,
+  onPurchases = () => {},
+  initialTab = "recipes",
+  onBackToPlan,
+}) {
+  const [tab, setTab] = useState(initialTab),
     [recipes, setRecipes] = useState([]),
     [ingredients, setIngredients] = useState([]),
     [query, setQuery] = useState(""),
@@ -207,7 +212,18 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
           Referencias externas
         </button>
       </div>
-      {tab === "sources" && <ExternalSources />}
+      {tab === "sources" && (
+        <>
+          {onBackToPlan && (
+            <div className="flow-actions">
+              <button type="button" className="secondary" onClick={onBackToPlan}>
+                ← Volver a Insumos
+              </button>
+            </div>
+          )}
+          <ExternalSources />
+        </>
+      )}
       {message && (
         <p className="notice" role="status">
           {message}
