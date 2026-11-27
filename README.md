@@ -43,6 +43,10 @@ La pantalla **Inicio** presenta la herramienta, explica los cuatro pasos y enlaz
 
 El prototipo antiguo, sus datos de demostración en JavaScript, el selector de versiones y la API legada se retiraron. Solo se carga la aplicación actual. No se borraron los registros históricos de la base local ni el almacenamiento previo del navegador. Una tabla `daily_plans` de instalaciones anteriores puede permanecer sin ser usada por la aplicación.
 
+## Paginación
+
+El recetario, los planes guardados, el historial de movimientos de inventario, las versiones anteriores de los planes y el detalle de resultados muestran hasta 10 registros por página. Cuando hay más registros, los botones **Anterior** y **Siguiente** permiten recorrer la lista. La paginación solo afecta la visualización en pantalla: los archivos CSV y PDF incluyen todos los registros que corresponden al reporte solicitado.
+
 ## Iniciar en Windows
 
 Seguir la [guía para el equipo: clonar, instalar, actualizar y compartir datos](docs/instalacion/windows.md). Después de actualizar:
@@ -91,4 +95,6 @@ Cada cálculo y exportador tiene su archivo en backend/app/services. Los conecto
 
 ## Tema visual
 
-La interfaz usa Archivo Variable y Michroma con fuentes locales. La paleta de grafito, blanco cálido y terracota se centraliza en frontend/src/styles/theme.css. Ver docs/architecture/diseno_visual.md para fuentes, colores y organización de estilos.
+La interfaz utiliza **Zilla Slab** para los títulos y **Plus Jakarta Sans** para el texto. Ambas fuentes se sirven localmente. La paleta combina grafito, tonos cálidos inspirados en el sillar y terracota, y se define en `frontend/src/styles/theme.css`. Los reportes PDF conservan la fuente **Archivo**.
+
+Consulta la [documentación del diseño visual](docs/architecture/diseno_visual.md) para conocer la organización de los estilos y las licencias de las fuentes.
