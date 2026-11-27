@@ -1,17 +1,16 @@
-/* Optik neutral permanece en el paquete ShieldFont; términos en su NOTICE. */
+/* Fuentes locales SIL OFL; procedencia y licencias en public/fonts. */
 @font-face {
-  font-family: "ShieldFont Optik";
-  src: url("../../node_modules/@shieldfont/font/optik-n.woff2") format("woff2");
+  font-family: "Zilla Slab";
+  src: url("/fonts/zilla-slab-700-latin.woff2") format("woff2");
   font-style: normal;
-  font-weight: 400;
+  font-weight: 700;
   font-display: swap;
 }
 @font-face {
-  font-family: "ShieldFont Optik";
-  src: url("../../node_modules/@shieldfont/font/optik-n-italic.woff2")
-    format("woff2");
-  font-style: italic;
-  font-weight: 400;
+  font-family: "Plus Jakarta Sans";
+  src: url("/fonts/plus-jakarta-sans-latin-variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 200 800;
   font-display: swap;
 }
 /* Archivo y Michroma: SIL OFL; créditos en public/fonts. */

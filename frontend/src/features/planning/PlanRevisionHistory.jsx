@@ -1,3 +1,5 @@
+import { usePagination } from "../../hooks/usePagination.js";
+import { Pagination } from "../../components/Pagination.jsx";
 import React, { useEffect, useState } from "react";
 import { api } from "../../services/api.js";
 import { MenuPlanSummary } from "./MenuPlanSummary.jsx";
@@ -6,6 +8,10 @@ export function PlanRevisionHistory({ plan }) {
   const [expanded, setExpanded] = useState(false);
   const [history, setHistory] = useState(null);
   const [error, setError] = useState("");
+  const pagination = usePagination(
+    history?.revisiones ?? [],
+    `${plan.id}:${plan.version}`,
+  );
   useEffect(() => {
     if (!expanded) return;
     const controller = new AbortController();
@@ -36,7 +42,7 @@ export function PlanRevisionHistory({ plan }) {
             </p>
           )}
           {!history && !error && <p role="status">Cargando historial…</p>}
-          {history?.revisiones.map((revision) => (
+          {pagination.items.map((revision) => (
             <details key={revision.version} className="flow-help">
               <summary>
                 Versión {revision.version} · {revision.resumen.fecha} ·{" "}
@@ -60,6 +66,7 @@ export function PlanRevisionHistory({ plan }) {
               <MenuPlanSummary plan={revision.resumen} />
             </details>
           ))}
+          <Pagination pagination={pagination} label="versiones del plan" />
         </details>
       ) : (
         <p>Este plan todavía no tiene cambios guardados.</p>

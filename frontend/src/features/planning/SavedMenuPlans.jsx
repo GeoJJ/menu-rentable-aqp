@@ -1,3 +1,5 @@
+import { usePagination } from "../../hooks/usePagination.js";
+import { Pagination } from "../../components/Pagination.jsx";
 import React, { useEffect, useState } from "react";
 import { api, money, downloadFile, matchesText } from "../../services/api.js";
 import { SectionIntro } from "../../components/SectionIntro.jsx";
@@ -37,6 +39,10 @@ export function SavedMenuPlans({
       matchesText(p.nombre_oferta, search) &&
       (!dates.from || p.fecha >= dates.from) &&
       (!dates.to || p.fecha <= dates.to),
+  );
+  const pagination = usePagination(
+    filtered,
+    JSON.stringify([filter, search, dates.from, dates.to]),
   );
   function clearFilters() {
     setFilter("all");
@@ -330,7 +336,7 @@ export function SavedMenuPlans({
             </>
           )}
           <div className="saved-plans">
-            {filtered.map((p) => (
+            {pagination.items.map((p) => (
               <article key={p.id}>
                 <div>
                   <span className="flow-eyebrow">{p.fecha}</span>
@@ -404,6 +410,7 @@ export function SavedMenuPlans({
               </article>
             ))}
           </div>
+          <Pagination pagination={pagination} label="planes guardados" />
         </section>
       )}
     </>

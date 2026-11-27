@@ -1,12 +1,13 @@
 # Fuentes de la interfaz
 
-La interfaz usa Optik neutral del paquete `@shieldfont/font` 0.3.4. Vite sirve los archivos del propio paquete; no se copian a esta carpeta. Procedencia: https://shieldfont.org/ y https://github.com/isaqueseneda/shieldfont. Optik pertenece a Playtype y su permiso de uso dentro de ShieldFont está en `node_modules/@shieldfont/font/NOTICE`; no está bajo SIL OFL. Se usa la variante neutral `optik-n`, sin codificar ni sustituir palabras. El corte incluido es regular: el navegador sintetiza los pesos de títulos y botones.
+- Zilla Slab 700: títulos y encabezados. Fuente: https://github.com/google/fonts/tree/main/ofl/zillaslab. Licencia: zillaslab-OFL.txt.
+- Plus Jakarta Sans: texto base en peso 500; la versión variable permite conservar los énfasis de botones, etiquetas y cifras. Fuente: https://github.com/google/fonts/tree/main/ofl/plusjakartasans. Licencia: plusjakartasans-OFL.txt.
 
-Archivo Variable se conserva como respaldo y para la identidad de los reportes. Michroma: marca tipográfica anterior.
+Ambas se sirven localmente en WOFF2 con caracteres latinos y españoles. Los subconjuntos conservan sus nombres y licencias SIL OFL 1.1.
 
-Ambas fuentes se distribuyen bajo SIL Open Font License 1.1. Se conservan los textos de licencia y los créditos de sus autores en esta carpeta. Se sirven localmente para no depender de servicios externos al abrir la aplicación.
+Archivo se conserva para respaldo de recursos anteriores y la identidad de los reportes PDF. Michroma corresponde a la marca tipográfica anterior. Sus licencias también están en esta carpeta. El logo aprobado es una imagen independiente.
 
-Archivo: The Archivo Project Authors, https://github.com/Omnibus-Type/Archivo
-Michroma: The Michroma Project Authors, https://github.com/googlefonts/Michroma-font
+Archivo: https://github.com/Omnibus-Type/Archivo
+Michroma: https://github.com/googlefonts/Michroma-font
 
-Los archivos WOFF2 de los subconjuntos latinos se obtuvieron de la referencia https://millionhair.vercel.app/ y corresponden a las familias identificadas en su CSS. No se copiaron fotografías, logos ni contenido comercial de esa web.
+Los archivos originales de Archivo y Michroma se obtuvieron de la referencia https://millionhair.vercel.app/. No se copiaron fotografías, logos ni contenido comercial de esa web.

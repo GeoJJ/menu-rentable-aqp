@@ -17,7 +17,7 @@ Los estilos se cargan en ese orden. El tema adapta la presentación de los compo
 
 ## Fuentes
 
-La interfaz usa Optik neutral de `@shieldfont/font` 0.3.4, la tipografía de SHIELD(FONT). El archivo `optik-n` conserva el texto original: no se activa el codificador ni la sustitución de palabras. Sus archivos se sirven desde el paquete mediante Vite, sin depender de un CDN durante el uso. Optik pertenece a Playtype y se distribuye dentro de ShieldFont según el permiso descrito en el NOTICE del paquete; no se trata de una fuente SIL OFL. Incluye caracteres españoles; el corte neutral es regular y el navegador sintetiza los pesos superiores. Archivo queda como respaldo y continúa en los PDF; el logo aprobado permanece igual.
+La interfaz usa Zilla Slab 700 para títulos y Plus Jakarta Sans 500 como peso base para el texto. Jakarta conserva sus pesos variables para énfasis de etiquetas, botones y cifras. Ambas fuentes se sirven localmente en WOFF2, incluyen caracteres españoles y conservan sus licencias SIL OFL en `frontend/public/fonts/`. Las fuentes proceden del repositorio oficial Google Fonts. ShieldFont se retiró de las dependencias. Los PDF continúan usando Archivo; el logo aprobado no cambia.
 
 ## Animaciones
 
@@ -79,3 +79,7 @@ SiteFooter.jsx y footer.css presentan la marca, accesos al sistema, enlaces de a
 
 
 El pie de página está fuera del contenedor central y ocupa todo el ancho. footer-inner conserva el contenido alineado con la landing o el espacio de trabajo. buttons.css unifica las acciones principales y secundarias con contornos redondeados, relieve sutil y estados de interacción; respeta la preferencia de movimiento reducido.
+
+## Paginación de listas
+
+Recetas, planes guardados, movimientos de inventario, versiones anteriores de planes y detalle de resultados muestran hasta 10 registros por página. `hooks/usePagination.js` limita los registros visibles y reinicia la página al cambiar filtros; también corrige la página si disminuye el total. `components/Pagination.jsx` muestra Anterior, Siguiente, el rango y el total cuando hay más de 10 registros. No elimina registros ni limita las descargas completas de reportes. Los movimientos conservan el alcance de los últimos 500 registros recuperados de la API.

@@ -52,7 +52,7 @@
   font-size: clamp(38px, 4.5vw, 66px);
   line-height: 1.02;
   letter-spacing: -2px;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
 }
 .home-hero-copy p {

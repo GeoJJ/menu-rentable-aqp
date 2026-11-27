@@ -1,3 +1,5 @@
+import { usePagination } from "../../hooks/usePagination.js";
+import { Pagination } from "../../components/Pagination.jsx";
 import React, { useEffect, useState } from "react";
 import { api, money, amount, matchesText } from "../../services/api.js";
 import { SectionIntro } from "../../components/SectionIntro.jsx";
@@ -31,6 +33,10 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
     (r) =>
       matchesText(r.nombre, query) &&
       (category === "all" || r.categoria === category),
+  );
+  const recipePages = usePagination(
+    visibleRecipes,
+    JSON.stringify([query, category]),
   );
   const visibleIngredients = ingredients.filter(
     (i) =>
@@ -266,7 +272,7 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
             </div>
           )}
           <div className="saved-plans">
-            {visibleRecipes.map((r) => (
+            {recipePages.items.map((r) => (
               <article key={r.id}>
                 <div>
                   <h3>{r.nombre}</h3>
@@ -303,6 +309,7 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
               </article>
             ))}
           </div>
+          <Pagination pagination={recipePages} label="recetas" />
         </>
       )}
       {tab === "recipes" && editor && (

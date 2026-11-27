@@ -1,3 +1,5 @@
+import { usePagination } from "../../hooks/usePagination.js";
+import { Pagination } from "../../components/Pagination.jsx";
 import React, { useEffect, useState } from "react";
 import {
   api,
@@ -52,6 +54,10 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
       setLoading(false);
     }
   }
+  const resultPages = usePagination(
+    report?.detalle ?? [],
+    JSON.stringify([report?.desde, report?.hasta]),
+  );
   useEffect(() => {
     load().catch((e) => setError(e.message));
   }, []);
@@ -517,7 +523,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.detalle.map((r) => (
+                    {resultPages.items.map((r) => (
                       <tr key={r.plan_id}>
                         <td>{r.fecha}</td>
                         <td>{r.nombre_oferta}</td>
@@ -533,6 +539,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
                   </tbody>
                 </table>
               </div>
+              <Pagination pagination={resultPages} label="resultados por día" />
             </>
           )}
         </section>

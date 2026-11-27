@@ -1,3 +1,5 @@
+import { usePagination } from "../../hooks/usePagination.js";
+import { Pagination } from "../../components/Pagination.jsx";
 import React, { useState } from "react";
 import { amount, money, matchesText } from "../../services/api.js";
 const names = {
@@ -9,12 +11,12 @@ const names = {
 export function MovementHistory({ movements }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("all");
-  const [limit, setLimit] = useState(20);
   const filtered = movements.filter(
     (m) =>
       (type === "all" || m.tipo === type) &&
       matchesText(`${m.nombre} ${m.motivo}`, query),
   );
+  const pagination = usePagination(filtered, JSON.stringify([query, type]));
   return (
     <section className="panel flow-panel">
       <span className="flow-eyebrow">LO QUE CAMBIÓ EN TU COCINA</span>
@@ -33,7 +35,6 @@ export function MovementHistory({ movements }) {
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
-              setLimit(20);
             }}
           />
         </label>
@@ -43,7 +44,6 @@ export function MovementHistory({ movements }) {
             value={type}
             onChange={(e) => {
               setType(e.target.value);
-              setLimit(20);
             }}
           >
             <option value="all">Todos los movimientos</option>
@@ -56,8 +56,7 @@ export function MovementHistory({ movements }) {
         </label>
       </div>
       <p className="record-count" role="status">
-        {filtered.length} movimientos encontrados · mostrando{" "}
-        {Math.min(limit, filtered.length)}
+        {filtered.length} movimientos encontrados
       </p>
       {!filtered.length ? (
         <div className="empty-records">
@@ -82,7 +81,7 @@ export function MovementHistory({ movements }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.slice(0, limit).map((m) => (
+              {pagination.items.map((m) => (
                 <tr key={m.id}>
                   <td>
                     {new Intl.DateTimeFormat("es-PE", {
@@ -114,11 +113,7 @@ export function MovementHistory({ movements }) {
           </table>
         </div>
       )}
-      {filtered.length > limit && (
-        <button className="secondary" onClick={() => setLimit((n) => n + 20)}>
-          Ver más movimientos
-        </button>
-      )}
+      <Pagination pagination={pagination} label="movimientos de inventario" />
     </section>
   );
 }
