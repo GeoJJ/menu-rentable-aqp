@@ -1,0 +1,59 @@
+.primary,
+.secondary,
+.whatsapp-button,
+.menu-toggle,
+.status-filters button,
+.site-navigation > a,
+.site-navigation .workspace-link,
+.site-navigation .workspace-link.is-active {
+  border-radius: 999px;
+}
+.primary {
+  background: linear-gradient(155deg, #c4533c, var(--accent));
+  border: 1px solid #d16b55;
+  box-shadow:
+    0 3px 8px #81281920,
+    inset 0 1px #ffffff18;
+}
+.primary:not(:disabled):hover {
+  background: linear-gradient(155deg, #b34430, var(--accent-hover));
+  box-shadow: 0 5px 12px #8128192b;
+  transform: translateY(-1px);
+}
+.secondary {
+  border-color: #bfae96;
+  box-shadow: 0 2px 4px #1b242608;
+}
+.secondary:not(:disabled):hover {
+  background: #f0e5d6;
+  border-color: #99846a;
+  transform: translateY(-1px);
+}
+.primary:not(:disabled):active,
+.secondary:not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+.site-navigation .workspace-link.is-active,
+.site-navigation > a[aria-current="page"] {
+  box-shadow:
+    inset 0 1px #ffffff25,
+    0 3px 8px #00000018;
+}
+.whatsapp-button {
+  box-shadow: 0 3px 10px #00000018;
+}
+.home-step-action span {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff0d;
+}
+@media (prefers-reduced-motion: reduce) {
+  .primary:not(:disabled):hover,
+  .secondary:not(:disabled):hover {
+    transform: none;
+  }
+}

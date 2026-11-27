@@ -3,6 +3,38 @@ from decimal import Decimal
 from app.repositories import catalog
 
 
+def test_recipe_status_distinguishes_missing_or_inactive_ingredients_from_stock(client):
+    api, connection = client
+    empty = api.get("/api/recipes").json()
+    assert all(
+        not r["lista_para_planificar"] and r["ingredientes_registrados"] == 0
+        for r in empty
+    )
+    ingredient = api.post(
+        "/api/ingredients", json={"nombre": "Papa", "unidad_codigo": "kg"}
+    ).json()
+    data = {
+        "nombre": "Caldo de papa",
+        "categoria": "caldo",
+        "rendimiento": 10,
+        "ingredientes": [{"ingrediente_id": ingredient["id"], "cantidad": "1"}],
+    }
+    assert api.put("/api/recipes/1", json=data).status_code == 200
+    complete = next(r for r in api.get("/api/recipes").json() if r["id"] == 1)
+    assert (
+        complete["lista_para_planificar"] and complete["ingredientes_registrados"] == 1
+    )
+    # Una receta completa no significa que exista stock. La marca solo describe la receta.
+    assert api.get("/api/ingredients").json()[0]["existencia"] is None
+    with connection() as c:
+        c.execute(
+            "UPDATE ingredientes SET activo=false WHERE id=%s", (ingredient["id"],)
+        )
+    assert not next(r for r in api.get("/api/recipes").json() if r["id"] == 1)[
+        "lista_para_planificar"
+    ]
+
+
 def test_catalog_crud_and_planning_inputs(client, monkeypatch):
     api, connection = client
     from app.repositories import menu_plans

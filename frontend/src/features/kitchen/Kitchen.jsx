@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { api, money, amount } from "../../services/api.js";
+import { api, money, amount, matchesText } from "../../services/api.js";
+import { SectionIntro } from "../../components/SectionIntro.jsx";
 import { ExternalSources } from "./ExternalSources.jsx";
 const blankRecipe = () => ({
   nombre: "",
@@ -24,6 +25,23 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
     setRecipes(r);
     setIngredients(i);
   }
+  const [category, setCategory] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const visibleRecipes = recipes.filter(
+    (r) =>
+      matchesText(r.nombre, query) &&
+      (category === "all" || r.categoria === category),
+  );
+  const visibleIngredients = ingredients.filter(
+    (i) =>
+      matchesText(i.nombre, query) &&
+      (stockFilter === "all" ||
+        (stockFilter === "empty" &&
+          i.existencia != null &&
+          Number(i.existencia) === 0) ||
+        (stockFilter === "uncounted" && i.existencia == null) ||
+        (stockFilter === "unpriced" && i.precio_compra == null)),
+  );
   useEffect(() => {
     reload()
       .catch((e) => setMessage(e.message))
@@ -128,14 +146,18 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
       setBusy(false);
     }
   }
-  const matches = (name) =>
-    name
-      .normalize("NFD")
-      .replace(/\p{M}/gu, "")
-      .toLowerCase()
-      .includes(query.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase());
   return (
     <section className="panel flow-panel">
+      {!editor && !stock && (
+        <SectionIntro
+          image={tab === "pantry" ? "compra" : "prepara"}
+          title="Una cocina organizada, un plan más claro"
+        >
+          Las recetas definen cuánto usarás por porción. La despensa registra lo
+          que tienes. Las referencias externas sirven para consultar información
+          de otras fuentes.
+        </SectionIntro>
+      )}
       <div
         className="kitchen-tabs"
         role="group"
@@ -146,6 +168,7 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
           disabled={busy}
           onClick={() => {
             setTab("recipes");
+            setQuery("");
             setEditor(null);
             setStock(null);
             setMessage("");
@@ -158,6 +181,7 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
           disabled={busy}
           onClick={() => {
             setTab("pantry");
+            setQuery("");
             setEditor(null);
             setMessage("");
           }}
@@ -213,35 +237,71 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
               placeholder="Nombre del plato o refresco"
             />
           </label>
+          <div className="record-filters kitchen-filter">
+            <label>
+              Categoría de receta
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="all">Todas las categorías</option>
+                <option value="caldo">Caldos</option>
+                <option value="entrada">Entradas</option>
+                <option value="segundo">Segundos</option>
+                <option value="refresco">Refrescos</option>
+              </select>
+            </label>
+            <span className="record-count" role="status">
+              {visibleRecipes.length} recetas encontradas
+            </span>
+          </div>
+          <p className="field-help">
+            Una receta completa puede usarse al armar el menú. Las existencias
+            se revisan por separado al planificar.
+          </p>
+          {!loading && !visibleRecipes.length && (
+            <div className="empty-records">
+              <h3>No hay recetas para esta búsqueda</h3>
+              <p>Prueba otro nombre o selecciona todas las categorías.</p>
+            </div>
+          )}
           <div className="saved-plans">
-            {recipes
-              .filter((r) => matches(r.nombre))
-              .map((r) => (
-                <article key={r.id}>
-                  <div>
-                    <h3>{r.nombre}</h3>
-                    <p>
-                      {r.categoria} · rinde {r.rendimiento} porciones
-                    </p>
-                  </div>
-                  <div>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => edit(r.id)}
-                    >
-                      Editar {r.nombre}
-                    </button>
-                    <button
-                      className="secondary"
-                      disabled={busy}
-                      onClick={() => archive(r.id)}
-                    >
-                      Archivar
-                    </button>
-                  </div>
-                </article>
-              ))}
+            {visibleRecipes.map((r) => (
+              <article key={r.id}>
+                <div>
+                  <h3>{r.nombre}</h3>
+                  <p>
+                    {r.categoria} · rinde {r.rendimiento} porciones
+                  </p>
+                  <span
+                    className={`state-pill ${r.lista_para_planificar ? "state-cerrado" : "state-planificado"}`}
+                  >
+                    {r.lista_para_planificar
+                      ? "Receta completa"
+                      : "Revisar ingredientes"}
+                  </span>
+                  <small className="recipe-detail-count">
+                    {r.ingredientes_registrados} ingredientes registrados
+                  </small>
+                </div>
+                <div>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => edit(r.id)}
+                  >
+                    Editar {r.nombre}
+                  </button>
+                  <button
+                    className="secondary"
+                    disabled={busy}
+                    onClick={() => archive(r.id)}
+                  >
+                    Archivar
+                  </button>
+                </div>
+              </article>
+            ))}
           </div>
         </>
       )}
@@ -566,6 +626,29 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
               placeholder="Nombre del ingrediente"
             />
           </label>
+          <div className="record-filters kitchen-filter">
+            <label>
+              Mostrar ingredientes
+              <select
+                value={stockFilter}
+                onChange={(e) => setStockFilter(e.target.value)}
+              >
+                <option value="all">Todos los ingredientes</option>
+                <option value="empty">Sin existencias</option>
+                <option value="uncounted">Sin conteo registrado</option>
+                <option value="unpriced">Sin precio de compra</option>
+              </select>
+            </label>
+            <span className="record-count" role="status">
+              {visibleIngredients.length} ingredientes encontrados
+            </span>
+          </div>
+          {!visibleIngredients.length && !loading && (
+            <div className="empty-records">
+              <h3>No hay ingredientes con estos filtros</h3>
+              <p>Cambia la búsqueda o muestra todos los ingredientes.</p>
+            </div>
+          )}
           <div className="table-wrap">
             <table>
               <thead>
@@ -578,59 +661,57 @@ export function Kitchen({ onChanged, onPurchases = () => {} }) {
                 </tr>
               </thead>
               <tbody>
-                {ingredients
-                  .filter((i) => matches(i.nombre))
-                  .map((i) => (
-                    <tr key={i.id}>
-                      <th>
-                        {i.nombre}
-                        <small className="unit-note">{i.unidad_codigo}</small>
-                      </th>
-                      <td>
-                        {i.existencia === null
-                          ? "Sin registrar"
-                          : amount(i.existencia)}
-                      </td>
-                      <td>
-                        {i.costo_unitario === null
-                          ? "Sin registrar"
-                          : money(i.costo_unitario)}
-                      </td>
-                      <td>
-                        {i.precio_compra === null
-                          ? "Sin registrar"
-                          : money(i.precio_compra)}
-                        {i.fecha_precio && (
-                          <small className="unit-note">{i.fecha_precio}</small>
-                        )}
-                      </td>
-                      <td>
-                        <button
-                          className="secondary"
-                          disabled={busy}
-                          onClick={() => {
-                            setStock({
-                              id: i.id,
-                              nombre: i.nombre,
-                              unidad_codigo: i.unidad_codigo,
-                              existencia: i.existencia ?? "",
-                              costo_unitario:
-                                Number(i.existencia) === 0
-                                  ? "0"
-                                  : (i.costo_unitario ?? ""),
-                              precio_compra: i.precio_compra ?? "",
-                              proveedor: i.proveedor ?? "",
-                              ubicacion: i.ubicacion ?? "Arequipa",
-                            });
-                            setMessage("");
-                            window.scrollTo(0, 0);
-                          }}
-                        >
-                          Actualizar {i.nombre}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                {visibleIngredients.map((i) => (
+                  <tr key={i.id}>
+                    <th>
+                      {i.nombre}
+                      <small className="unit-note">{i.unidad_codigo}</small>
+                    </th>
+                    <td>
+                      {i.existencia === null
+                        ? "Sin registrar"
+                        : amount(i.existencia)}
+                    </td>
+                    <td>
+                      {i.costo_unitario === null
+                        ? "Sin registrar"
+                        : money(i.costo_unitario)}
+                    </td>
+                    <td>
+                      {i.precio_compra === null
+                        ? "Sin registrar"
+                        : money(i.precio_compra)}
+                      {i.fecha_precio && (
+                        <small className="unit-note">{i.fecha_precio}</small>
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className="secondary"
+                        disabled={busy}
+                        onClick={() => {
+                          setStock({
+                            id: i.id,
+                            nombre: i.nombre,
+                            unidad_codigo: i.unidad_codigo,
+                            existencia: i.existencia ?? "",
+                            costo_unitario:
+                              Number(i.existencia) === 0
+                                ? "0"
+                                : (i.costo_unitario ?? ""),
+                            precio_compra: i.precio_compra ?? "",
+                            proveedor: i.proveedor ?? "",
+                            ubicacion: i.ubicacion ?? "Arequipa",
+                          });
+                          setMessage("");
+                          window.scrollTo(0, 0);
+                        }}
+                      >
+                        Actualizar {i.nombre}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

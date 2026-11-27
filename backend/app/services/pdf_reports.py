@@ -317,29 +317,23 @@ class ReportPDFExporter:
 
     @staticmethod
     def _brand(canvas):
-        """Marca vectorial compartida con el símbolo de plato y cubiertos de la web."""
+        """Logo aprobado, con fondo claro para conservar contraste en la cabecera."""
         canvas.saveState()
-        canvas.translate(40, A4[1] - 50)
-        canvas.setFillColor(PALETTE["accent"])
-        canvas.roundRect(0, 0, 31, 33, 5, fill=1, stroke=0)
-        canvas.translate(3, 2)
-        canvas.scale(0.78, 0.78)
-        canvas.setStrokeColor(colors.white)
-        canvas.setLineWidth(1.7)
-        canvas.setLineCap(1)
-        canvas.circle(16, 16, 7.5, fill=0, stroke=1)
-        for x1, y1, x2, y2 in [
-            (4, 28, 4, 21),
-            (7, 28, 7, 21),
-            (4, 24, 7, 24),
-            (5.5, 21, 5.5, 6),
-            (27, 28, 27, 6),
-        ]:
-            canvas.line(x1, y1, x2, y2)
-        blade = canvas.beginPath()
-        blade.moveTo(27, 28)
-        blade.curveTo(23, 24, 23, 18, 27, 18)
-        canvas.drawPath(blade)
+        canvas.setFillColor(colors.white)
+        canvas.roundRect(40, A4[1] - 60, 210, 52, 5, fill=1, stroke=0)
+        clip = canvas.beginPath()
+        clip.roundRect(40, A4[1] - 60, 210, 52, 5)
+        canvas.clipPath(clip, stroke=0)
+        canvas.drawImage(
+            str(FONT_DIR.parent / "brand" / "menu-rentable-logo-v1.png"),
+            43,
+            A4[1] - 68,
+            width=204,
+            height=68,
+            preserveAspectRatio=True,
+            anchor="c",
+            mask="auto",
+        )
         canvas.restoreState()
 
     def _build(self, title, story):
@@ -354,14 +348,6 @@ class ReportPDFExporter:
             canvas.rect(0, A4[1] - 68, A4[0], 68, fill=1, stroke=0)
             self._brand(canvas)
             canvas.setFillColor(colors.white)
-            canvas.setFont("Michroma", 10)
-            canvas.drawString(82, A4[1] - 32, "MENÚRENTABLE")
-            brand = canvas.beginText(83, A4[1] - 47)
-            brand.setFont("Archivo", 6.5)
-            brand.setCharSpace(2.6)
-            brand.textOut("AREQUIPA")
-            brand.setCharSpace(0)
-            canvas.drawText(brand)
             canvas.setFont("Archivo", 7)
             canvas.drawRightString(A4[0] - 40, A4[1] - 35, "PLANIFICACIÓN Y RESULTADOS")
             canvas.setStrokeColor(PALETTE["line"])

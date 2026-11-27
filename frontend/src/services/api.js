@@ -48,3 +48,13 @@ export const money = (value) =>
   );
 export const amount = (value) =>
   new Intl.NumberFormat("es-PE", { maximumFractionDigits: 4 }).format(value);
+
+export const matchesText = (value, query) => {
+  const normalize = (text) =>
+    String(text ?? "")
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase()
+      .trim();
+  return normalize(value).includes(normalize(query));
+};

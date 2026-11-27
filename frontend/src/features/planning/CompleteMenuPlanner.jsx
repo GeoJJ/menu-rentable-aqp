@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { api, money } from "../../services/api.js";
 import { MenuOffers } from "./MenuOffers.jsx";
 import { MenuPlanSummary } from "./MenuPlanSummary.jsx";
+import { SectionIntro } from "../../components/SectionIntro.jsx";
 const today = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Lima" }).format(
     new Date(),
@@ -174,6 +175,15 @@ export function CompleteMenuPlanner({
   }
   return (
     <div className="journey">
+      {!editPlan && step === 0 && (
+        <SectionIntro
+          image="planifica"
+          title="Antes de comprar, organiza tu menú"
+        >
+          Aquí preparas una estimación. Elige una combinación, revisa las
+          porciones y calcula qué ingredientes necesitarías comprar.
+        </SectionIntro>
+      )}
       {editPlan && (
         <section className="panel flow-panel">
           <h2>Editar plan pendiente</h2>
@@ -208,6 +218,27 @@ export function CompleteMenuPlanner({
           </li>
         ))}
       </ol>
+      {details && step > 0 && (
+        <aside
+          className="planning-context"
+          aria-label="Resumen de lo que estás planificando"
+        >
+          <div>
+            <span className="flow-eyebrow">TU MENÚ COMPLETO</span>
+            <strong>{details.menu.nombre}</strong>
+            <small>
+              {details.componentes.map((c) => c.nombre).join(" · ")}
+            </small>
+          </div>
+          <div>
+            <span>{form.fecha}</span>
+            <strong>
+              {form.cantidad} menús · {money(details.menu.precio_menu)} c/u
+            </strong>
+            <small>Presupuesto de compras: {money(form.presupuesto)}</small>
+          </div>
+        </aside>
+      )}
       <section className="panel flow-panel">
         <h2 ref={title} tabIndex={-1}>
           {

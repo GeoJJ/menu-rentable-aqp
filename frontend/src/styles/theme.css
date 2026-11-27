@@ -1,14 +1,14 @@
-/* Paleta de la aplicación: grafito, blanco cálido y terracota. */
+/* Paleta de la aplicación: sillar cálido, grafito y terracota. */
 :root {
   --font-body: "Archivo", "Segoe UI", sans-serif;
   --font-brand: "Michroma", "Archivo", sans-serif;
-  --background: #f3f4f0;
-  --surface: #ffffff;
-  --surface-soft: #f5f6f3;
+  --background: #ede3d4;
+  --surface: #fffaf2;
+  --surface-soft: #f5ecdf;
   --text: #20292a;
-  --muted: #596365;
-  --line: #dde2dd;
-  --line-strong: #bbc5bf;
+  --muted: #655e54;
+  --line: #dcd0be;
+  --line-strong: #b9aa95;
   --sidebar: #1b2426;
   --sidebar-hover: #303c3e;
   --on-dark: #f9faf6;
@@ -24,6 +24,11 @@
   --warning: #843c22;
   --warning-bg: #fff5ed;
   --warning-line: #eac9b1;
+  --card-background: #1b2426;
+  --card-text: #fff8ed;
+  --card-muted: #cbd3ce;
+  --card-line: #46534b;
+  --card-accent: #efb394;
   color-scheme: light;
 }
 body {

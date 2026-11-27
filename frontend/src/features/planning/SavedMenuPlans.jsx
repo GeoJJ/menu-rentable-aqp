@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { api, money, downloadFile } from "../../services/api.js";
+import { api, money, downloadFile, matchesText } from "../../services/api.js";
+import { SectionIntro } from "../../components/SectionIntro.jsx";
 import { MenuPlanSummary } from "./MenuPlanSummary.jsx";
 import { DayClosing } from "../operations/DayClosing.jsx";
 import { CompleteMenuPlanner } from "./CompleteMenuPlanner.jsx";
@@ -18,6 +19,30 @@ export function SavedMenuPlans({
   const [pdfBusy, setPdfBusy] = useState(false);
   const [editing, setEditing] = useState(false);
   const [notice, setNotice] = useState("");
+  const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
+  const [dates, setDates] = useState({ from: "", to: "" });
+  const today = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Lima",
+  }).format(new Date());
+  const states = [
+    ["all", "Todos"],
+    ["planificado", "Pendientes"],
+    ["cerrado", "Cerrados"],
+    ["cancelado", "Cancelados"],
+  ];
+  const filtered = plans.filter(
+    (p) =>
+      (filter === "all" || p.estado === filter) &&
+      matchesText(p.nombre_oferta, search) &&
+      (!dates.from || p.fecha >= dates.from) &&
+      (!dates.to || p.fecha <= dates.to),
+  );
+  function clearFilters() {
+    setFilter("all");
+    setSearch("");
+    setDates({ from: "", to: "" });
+  }
   async function changed(plan) {
     setDetail(plan);
     setEditing(false);
@@ -58,12 +83,13 @@ export function SavedMenuPlans({
       });
     return () => controller.abort();
   }, []);
-  async function open(id, focusClosing = false) {
+  async function open(id, focusClosing = false, edit = false) {
     setOpening(true);
     setError("");
     setNotice("");
     try {
       setDetail(await api(`menu-plans/${id}`));
+      setEditing(edit);
       window.scrollTo(0, 0);
       if (focusClosing)
         setTimeout(
@@ -145,7 +171,7 @@ export function SavedMenuPlans({
                 {notice}
               </p>
             )}
-            {justSaved?.id === detail.id && (
+            {justSaved?.id === detail.id && detail.estado === "planificado" && (
               <p className="notice" role="status">
                 Tu plan quedó guardado como una estimación. Todavía no registra
                 compras ni ventas. Si compras ingredientes, regístralos en
@@ -211,6 +237,11 @@ export function SavedMenuPlans({
         </>
       ) : (
         <section className="panel flow-panel">
+          <SectionIntro image="cierra" title="Cada día tiene su siguiente paso">
+            Edita los pendientes, registra el cierre cuando termines de vender y
+            consulta los días cerrados. Los cancelados se conservan como
+            historial.
+          </SectionIntro>
           <h2>Planes guardados</h2>
           <p>
             Un plan muestra lo que pensabas preparar. Cuando termines de vender
@@ -219,6 +250,77 @@ export function SavedMenuPlans({
             datos mientras siga pendiente de cierre.
           </p>
           {loading && <p role="status">Cargando planes…</p>}
+          {!loading && plans.length > 0 && (
+            <>
+              <div
+                className="status-filters"
+                role="group"
+                aria-label="Filtrar planes por estado"
+              >
+                {states.map(([value, label]) => (
+                  <button
+                    key={value}
+                    aria-pressed={filter === value}
+                    onClick={() => setFilter(value)}
+                  >
+                    {label}
+                    <span>
+                      {value === "all"
+                        ? plans.length
+                        : plans.filter((p) => p.estado === value).length}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="record-filters">
+                <label>
+                  Buscar por menú
+                  <input
+                    type="search"
+                    value={search}
+                    placeholder="Por ejemplo: lentejas"
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Desde
+                  <input
+                    type="date"
+                    value={dates.from}
+                    onChange={(e) =>
+                      setDates({ ...dates, from: e.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  Hasta
+                  <input
+                    type="date"
+                    min={dates.from}
+                    value={dates.to}
+                    onChange={(e) => setDates({ ...dates, to: e.target.value })}
+                  />
+                </label>
+                <button className="secondary" onClick={clearFilters}>
+                  Limpiar filtros
+                </button>
+              </div>
+              <p className="record-count" role="status">
+                Mostrando {filtered.length} de {plans.length} planes.
+              </p>
+              {!filtered.length && (
+                <div className="empty-records">
+                  <h3>No hay planes con estos filtros</h3>
+                  <p>
+                    Prueba otra fecha, otro nombre o muestra todos los estados.
+                  </p>
+                  <button className="secondary" onClick={clearFilters}>
+                    Mostrar todos los planes
+                  </button>
+                </div>
+              )}
+            </>
+          )}
           {!loading && !plans.length && (
             <>
               <p>Todavía no tienes planes guardados.</p>
@@ -228,12 +330,12 @@ export function SavedMenuPlans({
             </>
           )}
           <div className="saved-plans">
-            {plans.map((p) => (
+            {filtered.map((p) => (
               <article key={p.id}>
                 <div>
                   <span className="flow-eyebrow">{p.fecha}</span>
                   <h3>{p.nombre_oferta}</h3>
-                  <span className="state-pill">
+                  <span className={`state-pill state-${p.estado}`}>
                     {{
                       planificado: "Pendiente de cierre",
                       cerrado: "Día cerrado",
@@ -244,6 +346,13 @@ export function SavedMenuPlans({
                     {p.menus_planificados} menús · {money(p.precio_menu)} por
                     menú
                   </p>
+                  <p className="next-step">
+                    {p.estado === "cerrado"
+                      ? "Día completado. Revisa su cierre y descarga el plan."
+                      : p.estado === "cancelado"
+                        ? "Conservado como historial. Para otro día, prepara un nuevo plan."
+                        : "Puedes ajustar el plan o revisar las compras antes de cocinar."}
+                  </p>
                 </div>
                 <div>
                   <span>Compra estimada</span>
@@ -253,15 +362,42 @@ export function SavedMenuPlans({
                     disabled={opening}
                     onClick={() => open(p.id)}
                   >
-                    Ver plan y compras →
+                    {p.estado === "cerrado"
+                      ? "Ver plan del día cerrado →"
+                      : "Ver plan y compras →"}
                   </button>
                   {(p.estado ?? "planificado") === "planificado" && (
+                    <button
+                      className="secondary"
+                      disabled={opening}
+                      onClick={() => open(p.id, false, true)}
+                    >
+                      Editar este plan
+                    </button>
+                  )}
+                  {p.estado === "cerrado" && (
                     <button
                       className="primary"
                       disabled={opening}
                       onClick={() => open(p.id, true)}
                     >
-                      Cerrar este día
+                      Ver cierre del día
+                    </button>
+                  )}
+                  {(p.estado ?? "planificado") === "planificado" && (
+                    <button
+                      className="primary"
+                      disabled={opening || p.fecha > today}
+                      title={
+                        p.fecha > today
+                          ? "El cierre se registra el día del plan o después, al terminar de vender."
+                          : undefined
+                      }
+                      onClick={() => open(p.id, true)}
+                    >
+                      {p.fecha > today
+                        ? `Cierre desde ${p.fecha}`
+                        : "Cerrar este día"}
                     </button>
                   )}
                 </div>

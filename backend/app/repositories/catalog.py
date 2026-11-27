@@ -179,8 +179,10 @@ class CatalogRepository:
         with connect() as c:
             return (
                 c.cursor(row_factory=dict_row)
-                .execute(
-                    "SELECT id,nombre,categoria,rendimiento FROM recetas WHERE activo ORDER BY categoria,nombre"
-                )
+                .execute("""SELECT r.id,r.nombre,r.categoria,r.rendimiento,
+                    (SELECT count(*) FROM receta_ingredientes ri WHERE ri.receta_id=r.id) AS ingredientes_registrados,
+                    (EXISTS(SELECT 1 FROM receta_ingredientes ri WHERE ri.receta_id=r.id)
+                    AND NOT EXISTS(SELECT 1 FROM receta_ingredientes ri JOIN ingredientes i ON i.id=ri.ingrediente_id WHERE ri.receta_id=r.id AND NOT i.activo)) AS lista_para_planificar
+                    FROM recetas r WHERE r.activo ORDER BY r.categoria,r.nombre""")
                 .fetchall()
             )

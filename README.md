@@ -31,6 +31,8 @@ docs/architecture/     Arquitectura y mapa de clases para sustentación
 
 ## Recorrido completo
 
+La pantalla **Inicio** presenta la herramienta, explica los cuatro pasos y enlaza con las operaciones. Incluye la imagen de Arequipa, las ilustraciones del recorrido y consejos de llenado. Los botones siguientes mantienen el flujo de trabajo:
+
 1. **Mi cocina:** crear y editar recetas; registrar ingredientes, existencias y cotizaciones manuales.
 2. **Preparar mi plan:** elegir o editar el menú (nombre, precio y recetas), ingresar fecha y cantidad, consultar sugerencia histórica si existen cierres, revisar insumos y calcular. Python agrega ingredientes compartidos, calcula faltantes, redondea compras y verifica presupuesto.
 3. **Mis planes:** consultar el plan y descargar la lista de compras en CSV o PDF. Mientras esté pendiente, editar fecha, menú, cantidad, presupuesto e insumos; revisar la comparación y guardar con un motivo. El historial conserva las versiones anteriores. Un plan cerrado o cancelado no se edita.

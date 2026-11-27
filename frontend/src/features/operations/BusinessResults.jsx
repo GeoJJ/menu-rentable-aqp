@@ -7,16 +7,13 @@ import {
   downloadFile,
 } from "../../services/api.js";
 import { GuidedField } from "../../components/FormHelp.jsx";
+import { SectionIntro } from "../../components/SectionIntro.jsx";
+import { MovementHistory } from "./MovementHistory.jsx";
 const today = () =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Lima" }).format(
     new Date(),
   );
-const movementNames = {
-  compra: "Compra recibida",
-  merma: "Pérdida de ingrediente",
-  consumo: "Uso al cerrar el día",
-  ajuste: "Conteo de despensa",
-};
+
 const unitHints = {
   kg: "Escribe kilos: una bolsa de 5 kg es 5; 500 gramos es 0.5.",
   L: "Escribe litros: dos botellas de 1 L son 2; 500 ml es 0.5.",
@@ -37,16 +34,23 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
     desde: today().slice(0, 8) + "01",
     hasta: today(),
   });
+  const [receipt, setReceipt] = useState(null);
+  const [loading, setLoading] = useState(true);
   const ingredient = ingredients.find((i) => String(i.id) === selected);
   const unit = ingredient?.unidad_codigo ?? "";
   const buying = tab === "purchase";
   async function load() {
-    const [i, m] = await Promise.all([
-      api("ingredients"),
-      api("inventory/movements"),
-    ]);
-    setIngredients(i);
-    setMovements(m);
+    setLoading(true);
+    try {
+      const [i, m] = await Promise.all([
+        api("ingredients"),
+        api("inventory/movements"),
+      ]);
+      setIngredients(i);
+      setMovements(m);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     load().catch((e) => setError(e.message));
@@ -56,6 +60,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
     setSelected("");
     setError("");
     setMessage("");
+    setReceipt(null);
   }
   async function movement(event) {
     event.preventDefault();
@@ -66,6 +71,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
       f = new FormData(element),
       name = ingredient.nombre,
       unitCode = unit;
+    setReceipt(null);
     try {
       const result = await api("inventory/movements", {
         body: {
@@ -75,6 +81,14 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
           ...(buying ? { importe_total: f.get("total") } : {}),
           motivo: f.get("motivo"),
         },
+      });
+      setReceipt({
+        name,
+        unit: unitCode,
+        type: buying ? "compra" : "merma",
+        quantity: f.get("cantidad"),
+        total: buying ? f.get("total") : null,
+        balance: result.saldo,
       });
       setMessage(
         `${buying ? "Compra" : "Pérdida"} registrada: ${name}. Ahora tienes ${amount(result.saldo)} ${unitCode} en tu cocina.`,
@@ -126,6 +140,13 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
   }
   return (
     <>
+      <SectionIntro
+        image={tab === "reports" ? "cierra" : "compra"}
+        title="Registra lo que pasó, consulta lo que quedó"
+      >
+        Separa tus compras de las pérdidas. Al terminar de vender, cierra el día
+        desde Mis planes y consulta sus resultados por fechas.
+      </SectionIntro>
       <div
         className="kitchen-tabs"
         role="group"
@@ -135,6 +156,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
           ["purchase", "Registrar compra"],
           ["loss", "Registrar pérdida"],
           ["reports", "Ver resultados"],
+          ["history", "Historial"],
         ].map(([value, label]) => (
           <button
             key={value}
@@ -157,7 +179,54 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
           {message}
         </p>
       )}
-      {tab !== "reports" && (
+      {receipt && (
+        <aside
+          className="movement-receipt"
+          aria-label="Detalle del movimiento guardado"
+        >
+          <strong>
+            {receipt.name} ·{" "}
+            {receipt.type === "compra" ? "Compra guardada" : "Pérdida guardada"}
+          </strong>
+          <dl>
+            <div>
+              <dt>
+                {receipt.type === "compra"
+                  ? "Cantidad recibida"
+                  : "Cantidad descontada"}
+              </dt>
+              <dd>
+                {amount(receipt.quantity)} {receipt.unit}
+              </dd>
+            </div>
+            {receipt.total !== null && (
+              <div>
+                <dt>Total pagado</dt>
+                <dd>{money(receipt.total)}</dd>
+              </div>
+            )}
+            <div>
+              <dt>Nueva existencia en cocina</dt>
+              <dd>
+                {amount(receipt.balance)} {receipt.unit}
+              </dd>
+            </div>
+          </dl>
+          <p>
+            Este movimiento ya quedó registrado. Puedes consultarlo en
+            Historial.
+          </p>
+        </aside>
+      )}
+      {tab === "history" &&
+        (loading ? (
+          <section className="panel flow-panel">
+            <p role="status">Cargando historial de inventario…</p>
+          </section>
+        ) : (
+          <MovementHistory movements={movements} />
+        ))}
+      {(tab === "purchase" || tab === "loss") && (
         <section className="panel flow-panel operations-panel">
           <span className="flow-eyebrow">
             {buying
@@ -296,45 +365,13 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
             La fecha del movimiento es hoy. Regístralo cuando recibas la compra
             o detectes la pérdida, antes de cerrar el día correspondiente.
           </p>
-          <details>
-            <summary>Ver compras y cambios de existencias registrados</summary>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Ingrediente</th>
-                    <th>Qué ocurrió</th>
-                    <th>Cantidad</th>
-                    <th>Quedó en cocina</th>
-                    <th>Referencia</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movements.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        {new Intl.DateTimeFormat("es-PE", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                          timeZone: "America/Lima",
-                        }).format(new Date(m.creado_en))}
-                      </td>
-                      <td>{m.nombre}</td>
-                      <td>{movementNames[m.tipo] ?? m.tipo}</td>
-                      <td>
-                        {amount(m.cantidad)} {m.unidad_codigo}
-                      </td>
-                      <td>
-                        {amount(m.saldo)} {m.unidad_codigo}
-                      </td>
-                      <td>{m.motivo}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </details>
+          <button
+            className="secondary history-shortcut"
+            type="button"
+            onClick={() => changeTab("history")}
+          >
+            Ver historial de compras y existencias →
+          </button>
           <div className="flow-actions">
             <span>
               ¿Ya terminaste de vender? El cierre se hace desde tu plan.
@@ -426,6 +463,23 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
                   <b>{money(report.margen_real)}</b>
                 </div>
               </div>
+              <div
+                className="record-metrics"
+                aria-label="Producción y ventas del periodo"
+              >
+                <div>
+                  <span>Menús preparados</span>
+                  <strong>{report.preparadas}</strong>
+                </div>
+                <div>
+                  <span>Menús vendidos</span>
+                  <strong>{report.vendidas}</strong>
+                </div>
+                <div>
+                  <span>Menús sobrantes</span>
+                  <strong>{report.sobrantes}</strong>
+                </div>
+              </div>
               <p>
                 Otros gastos que declaraste: {money(report.gastos_adicionales)}.
                 El margen es lo que queda de las ventas después de los
@@ -456,6 +510,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
                       <th>Planeabas preparar</th>
                       <th>Preparaste</th>
                       <th>Vendiste</th>
+                      <th>Sobraron</th>
                       <th>Venta estimada</th>
                       <th>Venta real</th>
                       <th>Margen</th>
@@ -469,6 +524,7 @@ export function BusinessResults({ onChanged, onViewPlans = () => {} }) {
                         <td>{r.menus_planificados}</td>
                         <td>{r.preparadas}</td>
                         <td>{r.vendidas}</td>
+                        <td>{r.sobrantes}</td>
                         <td>{money(r.ingreso_estimado)}</td>
                         <td>{money(r.ingreso_real)}</td>
                         <td>{money(r.margen_real)}</td>

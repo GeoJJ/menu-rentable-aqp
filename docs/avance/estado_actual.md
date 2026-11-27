@@ -8,7 +8,7 @@ Fuentes: MIDAGRI (precio de pollo vivo), Plaza Vea (producto y precio online de 
 
 ## Validación
 
-Pruebas unitarias y de integración en una base separada, incluyendo rollback ante falta de stock, protección contra cierre repetido, costos promedio, reportes, pronóstico sin datos futuros y conservación de referencias ante fallos. Resultado final: 39 pruebas aprobadas en PostgreSQL aislado. La ampliación de edición prueba fecha ocupada, presupuesto insuficiente, estado cerrado o cancelado, rollback después de sustituir detalles, historial completo, versiones obsoletas y dos ediciones concurrentes. Un cierre revisado antes de una edición se rechaza sin consumo. También se comprobó en navegador: cancelar edición, cambiar menú, fecha, cantidad e insumos, exigir motivo, comparar, guardar, consultar historial, descargar PDF con versión, recargar y cerrar usando el nuevo plan. La vista móvil no desborda la página. Todas las compras y ventas de pruebas usan bases separadas del negocio.
+Pruebas unitarias y de integración en una base separada, incluyendo rollback ante falta de stock, protección contra cierre repetido, costos promedio, reportes, pronóstico sin datos futuros y conservación de referencias ante fallos. Resultado final: 40 pruebas aprobadas en PostgreSQL aislado. La ampliación de edición prueba fecha ocupada, presupuesto insuficiente, estado cerrado o cancelado, rollback después de sustituir detalles, historial completo, versiones obsoletas y dos ediciones concurrentes. Un cierre revisado antes de una edición se rechaza sin consumo. También se comprobó en navegador: cancelar edición, cambiar menú, fecha, cantidad e insumos, exigir motivo, comparar, guardar, consultar historial, descargar PDF con versión, recargar y cerrar usando el nuevo plan. La vista móvil no desborda la página. Todas las compras y ventas de pruebas usan bases separadas del negocio.
 
 ## Límites
 
@@ -25,3 +25,8 @@ Compras, pérdidas y resultados se presentan por separado. Los formularios expli
 ## Organización y limpieza
 
 Servicios de cálculo y exportadores separados en archivos por responsabilidad. Conectores privados y ONG separados; descarga y excepción de lectura compartidas. Pantallas agrupadas en features/planning, features/kitchen y features/operations. Se retiraron 207 selectores CSS sin uso, imports sobrantes y carpetas del prototipo; las guías antiguas y archivos de pruebas se archivaron fuera del repositorio activo. La edición reutiliza CompleteMenuPlanner y MenuPlanningCalculator; PlanRevisionHistory presenta las versiones anteriores. Hay cinco migraciones; la quinta agrega el historial sin alterar los datos de planes existentes.
+
+
+## Mejoras de uso
+
+Planificador con resumen del menú durante los pasos; planes con filtros por estado, nombre y fecha; recetas con estado de integridad devuelto por Python; despensa con filtros de existencias o precios pendientes; confirmación detallada de compras y pérdidas, e historial visible con filtros y paginación. Se comprobaron estos recorridos en escritorio y móvil sin errores de consola. La prueba de integridad de recetas distingue ausencia de ingredientes, ingredientes inactivos y falta de inventario. El recorrido de compra, cierre y PDF se volvió a comprobar en PostgreSQL aislado.

@@ -1,0 +1,72 @@
+/* Recuadros de contenido y resumen. Los formularios conservan su superficie clara. */
+.home-step,
+.home-last-call,
+.home-tip-grid article,
+.section-intro,
+.saved-plans article,
+.plan-metrics > div,
+.record-metrics > div {
+  background: var(--card-background);
+  color: var(--card-text);
+  border-color: var(--card-line);
+}
+.home-step h3,
+.home-last-call h2,
+.home-tip-grid h3,
+.section-intro strong,
+.saved-plans article h3,
+.saved-plans article strong,
+.plan-metrics b,
+.record-metrics strong {
+  color: var(--card-text);
+}
+.home-step p,
+.home-last-call p,
+.home-tip-grid p,
+.section-intro p,
+.saved-plans article p,
+.saved-plans article .next-step,
+.recipe-detail-count,
+.saved-plans article > div:last-child > span,
+.plan-metrics span,
+.record-metrics span {
+  color: var(--card-muted);
+}
+.home-step-action,
+.home-last-call .flow-eyebrow,
+.home-tip-grid article > span,
+.saved-plans article .flow-eyebrow {
+  color: var(--card-accent);
+}
+.home-step-action {
+  border-top-color: var(--card-line);
+}
+.home-step-action:hover {
+  color: #fff8ed;
+}
+.home-tip-grid article {
+  padding: 24px;
+  border: 1px solid var(--card-line);
+  border-top: 3px solid var(--accent);
+  border-radius: 8px;
+}
+.faq-items {
+  border-top: 0;
+}
+.faq-items details {
+  background: var(--card-background);
+  color: var(--card-text);
+  border: 1px solid var(--card-line);
+  border-radius: 7px;
+  padding: 0 19px;
+  margin-bottom: 10px;
+}
+.faq-items summary {
+  color: var(--card-text);
+}
+.faq-items details[open] summary {
+  color: var(--card-accent);
+}
+.faq-items p {
+  color: var(--card-muted);
+}
